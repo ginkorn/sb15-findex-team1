@@ -6,10 +6,10 @@
 
 | 이름 | GitHub |
 | --- | --- |
-| (TODO: 이름) | [ginkorn](https://github.com/ginkorn) |
-| (TODO: 이름) | [seok0630](https://github.com/seok0630) |
-| (TODO: 이름) | [uhae451-wq](https://github.com/uhae451-wq) |
-| (TODO: 이름) | [ohkr1123-commits](https://github.com/ohkr1123-commits) |
+| (전현진) | [ginkorn](https://github.com/ginkorn) |
+| (박석규) | [seok0630](https://github.com/seok0630) |
+| (김현수) | [uhae451-wq](https://github.com/uhae451-wq) |
+| (최주영) | [ohkr1123-commits](https://github.com/ohkr1123-commits) |
 
 ## 프로젝트 소개
 
