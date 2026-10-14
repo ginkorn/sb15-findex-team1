@@ -14,13 +14,13 @@
 ## 프로젝트 소개
 
 - 외부 Open API와 연동해 금융 지수 데이터를 수집·관리하고 대시보드로 제공하는 Spring 백엔드 시스템 구축
-- 프로젝트 기간: (TODO: YYYY.MM.DD ~ YYYY.MM.DD)
+- 프로젝트 기간: (2026.10.14 ~ 2026.10.23)
 
 ## 기술 스택
 
 - Backend: Spring Boot, Spring Data JPA
-- Database: (TODO)
-- 공통 Tool: Git & GitHub, Trello, (TODO: Discord 등)
+- Database: PostgreSQL
+- 공통 Tool: Git & GitHub, Trello
 
 ## 협업 규칙
 
