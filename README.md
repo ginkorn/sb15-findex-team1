@@ -130,7 +130,7 @@ com.sprint.mission.sb15findexteam1/
     ├── exception/     # 공통 예외 처리
     └── config/        # 공통 설정
 ```
-비교적 작은 프로젝트 규모로 도메인형 체택
+비교적 작은 프로젝트 규모로 도메인형 채택
 
 ## 구현 홈페이지
 
