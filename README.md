@@ -122,6 +122,33 @@ erDiagram
 ## 파일 구조
 
 ```
+sb15-findex-team1/
+│
+├── src/main/
+│   ├── java/com/sprint/mission/sb15findexteam1/
+│   │   ├── Sb15FindexTeam1Application.java
+│   │   ├── common/                    # [A] 팀 공통 코드
+│   │   ├── indexinfo/                 # [A] 지수 정보
+│   │   ├── indexdata/                 # [B] 지수 데이터
+│   │   ├── autosyncconfig/            # [A] 자동 연동 설정
+│   │   ├── openapi/                   # [C] 외부 금융위원회 API 통신
+│   │   ├── syncjob/                   # [C] 연동 실행·기록 / [D] 이력 조회
+│   │   └── dashboard/                 # [D] 차트·성과·랭킹
+│   └── resources/                    # 애플리케이션 설정·리소스
+│
+└── frontend/                         # 프론트엔드
+    ├── public/                       # 정적 파일
+    └── src/
+        ├── api/                      # 백엔드 API 호출
+        ├── components/               # 공통 UI 컴포넌트
+        ├── pages/                    # 기능별 화면
+        └── assets/                   # 이미지·스타일 등
+```
+
+
+## 파일 상세 구조
+
+```
 com/sprint/mission/sb15findexteam1/
 │
 ├── Sb15FindexTeam1Application.java
