@@ -15,10 +15,22 @@ dist-ssr
 # Editor directories and files
 !.vscode/extensions.json
 .idea
+*.iml
+.vscode/*
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Gradle / Java
+.gradle/
+build/
+out/
+*.class
+
+# Local environment
 .env
+.env.*
+!.env.example
