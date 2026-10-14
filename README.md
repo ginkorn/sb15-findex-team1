@@ -109,7 +109,26 @@ erDiagram
 ## 파일 구조
 
 ```
-(TODO: 프로젝트 구조 확정 후 작성)
+com.sprint.mission.sb15findexteam1/
+├── Sb15FindexTeam1Application.java
+├── indexinfo/          # 지수 정보
+│   ├── controller/
+│   ├── service/
+│   ├── repository/
+│   ├── entity/
+│   └── dto/
+├── indexdata/          # 지수 데이터
+│   ├── controller/
+│   ├── service/
+│   ├── repository/
+│   ├── entity/
+│   └── dto/
+├── autosyncconfig/     # 자동 연동 설정
+├── syncjob/            # 연동 이력
+└── common/
+    ├── dto/           # 공통 페이지 응답
+    ├── exception/     # 공통 예외 처리
+    └── config/        # 공통 설정
 ```
 
 ## 구현 홈페이지
