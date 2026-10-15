@@ -1,4 +1,4 @@
-package com.sprint.mission.sb15findexteam1.indexdate.dto;
+package com.sprint.mission.sb15findexteam1.indexdata.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
