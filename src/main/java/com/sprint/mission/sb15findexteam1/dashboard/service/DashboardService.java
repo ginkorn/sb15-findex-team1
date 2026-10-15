@@ -14,13 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor     // final 필드로 생성자를 자동 생성 (생성자 주입)
+@RequiredArgsConstructor
 public class DashboardService {
 
-  // 이 세 필드가 곧 생성자 파라미터이며, 선언 순서가 그대로 인자 순서가 된다
-  private final DashboardIndexDataRepository repository;           // 조회용
-  private final MovingAverageCalculator movingAverageCalculator;    // 이동평균 계산용 (다음 사이클에서 사용)
-  private final ChartDataPointMapper chartDataPointMapper;          // 엔티티 → 차트 점 변환용
+  private final DashboardIndexDataRepository repository;
+  private final MovingAverageCalculator movingAverageCalculator;
+  private final ChartDataPointMapper chartDataPointMapper;
 
   @Transactional(readOnly = true)     // 조회 전용 트랜잭션
   public IndexChartDto getChart(Long indexInfoId, ChartPeriodType periodType) {
@@ -46,11 +45,11 @@ public class DashboardService {
     // 5) 응답 DTO를 조립한다
     return new IndexChartDto(
         indexInfoId,
-        null,                    // 지수 분류명 (IndexInfo 병합 후 채움)
+        null,    // 지수 분류명 (IndexInfo 병합 후 채움)
         null,                    // 지수명 (IndexInfo 병합 후 채움)
         periodType.name(),
         dataPoints,              // 종가
-        ma5,                     // 5일 이동평균   ← List.of() 대신
-        ma20);                   // 20일 이동평균  ← List.of() 대신
+        ma5,                     // 5일 이동평균
+        ma20);                   // 20일 이동평균
   }
 }
