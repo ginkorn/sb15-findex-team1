@@ -15,6 +15,10 @@ public class MovingAverageCalculator {
   // window : 몇 개씩 묶어서 평균을 낼지 (5일선이면 5, 20일선이면 20)
   public List<ChartDataPointResponse> calculate(List<ChartDataPointResponse> prices, int window) {
 
+    // window가 1보다 작으면 평균을 낼 수 없으므로 즉시 예외 (테스트가 기대하는 동작)
+    if (window < 1) {
+      throw new IllegalArgumentException("window는 1 이상이어야 합니다.");
+    }
     // 계산 결과(날짜 + 평균)를 담을 빈 리스트를 만든다
     List<ChartDataPointResponse> result = new ArrayList<>();
 
