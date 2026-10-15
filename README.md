@@ -24,7 +24,20 @@
 
 ## 협업 규칙
 
-- `main` 브랜치를 기준으로 `feature/{작업명}` 브랜치를 만들어 작업합니다.
+### Git 브랜치 전략
+
+| 브랜치 | 용도 |
+| --- | --- |
+| `main` | 최종 제출 및 배포용 브랜치 |
+| `develop` | 개발 내용을 통합하고 테스트하는 브랜치 |
+| `feature/기능명` | 개별 기능 개발용 브랜치 |
+| `fix/버그명` | 개발 중 발견된 버그 수정용 브랜치 |
+
+- `feature/*`, `fix/*` 브랜치는 `develop`에서 만들고, `develop`으로 PR을 올립니다.
+- `main`에는 `develop`을 merge하는 릴리스 PR만 올립니다.
+
+### 리뷰 규칙
+
 - PR을 올리고 팀원 1명 이상의 코드 리뷰와 Approve를 받은 뒤 Merge합니다.
 - 페어 프로그래밍으로 진행한 작업은 코드 리뷰를 생략하고 Merge할 수 있습니다.
 
@@ -107,6 +120,33 @@ erDiagram
 ```
 
 ## 파일 구조
+
+```
+sb15-findex-team1/
+│
+├── src/main/
+│   ├── java/com/sprint/mission/sb15findexteam1/
+│   │   ├── Sb15FindexTeam1Application.java
+│   │   ├── common/                    # [A] 팀 공통 코드
+│   │   ├── indexinfo/                 # [A] 지수 정보
+│   │   ├── indexdata/                 # [B] 지수 데이터
+│   │   ├── autosyncconfig/            # [A] 자동 연동 설정
+│   │   ├── openapi/                   # [C] 외부 금융위원회 API 통신
+│   │   ├── syncjob/                   # [C] 연동 실행·기록 / [D] 이력 조회
+│   │   └── dashboard/                 # [D] 차트·성과·랭킹
+│   └── resources/                    # 애플리케이션 설정·리소스
+│
+└── frontend/                         # 프론트엔드
+    ├── public/                       # 정적 파일
+    └── src/
+        ├── api/                      # 백엔드 API 호출
+        ├── components/               # 공통 UI 컴포넌트
+        ├── pages/                    # 기능별 화면
+        └── assets/                   # 이미지·스타일 등
+```
+
+
+## 파일 상세 구조
 
 ```
 com/sprint/mission/sb15findexteam1/
