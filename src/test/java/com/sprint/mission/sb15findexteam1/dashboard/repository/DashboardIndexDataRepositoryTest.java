@@ -1,4 +1,4 @@
-package com.sprint.mission.sb15findexteam1.repository;
+package com.sprint.mission.sb15findexteam1.dashboard.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
