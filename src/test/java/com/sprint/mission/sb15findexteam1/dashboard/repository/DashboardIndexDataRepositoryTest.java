@@ -68,7 +68,42 @@ class DashboardIndexDataRepositoryTest {
     assertThat(latest.get().getBaseDate()).isEqualTo(LocalDate.of(2025, 2, 14));
   }
 
-  // ----- 방식 2: QueryDSL (3단계에서 구현 후 주석을 풀어 사용) -----
-  // @Test
-  // void querydsl_between() { repository.findPricesBetween(...) }
+
+
+  // 기준일 당일 데이터가 있으면 그 데이터를 돌려줘야 한다 (기준일 "포함")
+  @Test
+  @DisplayName("[QueryDSL] 기준일 당일 데이터가 있으면 당일 데이터를 조회한다")
+  void findLatestOnOrBefore_sameDay() {
+    // when: 2025-02-14 이전(포함) 중 가장 최근 데이터를 찾는다
+    Optional<IndexData> result = repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 2, 14));
+
+    // then: 2/14 데이터(종가 120)가 나와야 한다
+    assertThat(result).isPresent();
+    assertThat(result.get().getBaseDate()).isEqualTo(LocalDate.of(2025, 2, 14));
+    assertThat(result.get().getClosingPrice()).isEqualByComparingTo("120");
+  }
+
+  // 기준일에 데이터가 없으면(주말, 휴일) 그 이전 중 가장 가까운 날을 돌려줘야 한다
+  @Test
+  @DisplayName("[QueryDSL] 기준일에 데이터가 없으면 이전 중 가장 가까운 날을 조회한다")
+  void findLatestOnOrBefore_gap() {
+    // when: 2025-02-01에는 데이터가 없다 (있는 날은 1/14, 1/15, 2/14)
+    Optional<IndexData> result = repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 2, 1));
+
+    // then: 2/1 이전 중 가장 가까운 1/15 데이터(종가 110)가 나와야 한다
+    assertThat(result).isPresent();
+    assertThat(result.get().getBaseDate()).isEqualTo(LocalDate.of(2025, 1, 15));
+    assertThat(result.get().getClosingPrice()).isEqualByComparingTo("110");
+  }
+
+  // 기준일 이전에 데이터가 아예 없으면 빈 결과여야 한다
+  @Test
+  @DisplayName("[QueryDSL] 기준일 이전 데이터가 없으면 빈 결과를 돌려준다")
+  void findLatestOnOrBefore_empty() {
+    // when: 가장 오래된 데이터(1/14)보다 이전 날짜로 찾는다
+    Optional<IndexData> result = repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 1));
+
+    // then: 없으니 비어 있어야 한다
+    assertThat(result).isEmpty();
+  }
 }
