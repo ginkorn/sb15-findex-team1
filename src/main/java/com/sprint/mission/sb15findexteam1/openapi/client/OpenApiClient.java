@@ -13,6 +13,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+/**
+ * 금융위원회 지수시세 Open API를 호출하는 클라이언트.
+ *
+ * <p>주소·인증키는 .env의 ENDPOINT, API_KEY에서 읽는다. (없으면 기본 주소, 빈 키)
+ */
 @Component
 @Slf4j
 public class OpenApiClient {
@@ -28,6 +33,13 @@ public class OpenApiClient {
     this.apiKey = apiKey;
   }
 
+  /**
+   * 기간 안의 모든 지수 시세를 가져온다. (페이지를 끝까지 반복 조회)
+   *
+   * <p>Open API의 endBasDt는 "미만" 조건이라 종료일에 하루를 더해 보낸다.
+   *
+   * @throws OpenApiException 응답이 없거나 resultCode가 00(정상)이 아닐 때
+   */
   public List<Item> getIndexData(LocalDate baseDateFrom, LocalDate baseDateTo) {
     String beginDt = baseDateFrom.format(KRX_DATE_FORMAT);
     String endDt = baseDateTo.plusDays(1).format(KRX_DATE_FORMAT);

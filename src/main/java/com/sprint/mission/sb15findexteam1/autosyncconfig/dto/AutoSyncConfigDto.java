@@ -5,7 +5,6 @@ public record AutoSyncConfigDto(
     int indexInfoId,
     String indexClassification,
     String indexName,
-    boolean enabled
-) {
+    boolean enabled) {
 
 }
