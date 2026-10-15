@@ -46,4 +46,17 @@ class FluctuationCalculatorTest {
     assertThat(result.fluctuationRate()).isEqualByComparingTo("-5.00");
   }
 
+  // 나누어떨어지지 않으면 소수 둘째 자리에서 반올림한다
+  @Test
+  @DisplayName("나누어떨어지지 않는 등락률은 소수 둘째 자리에서 반올림한다")
+  void rounding() {
+    IndexPerformanceDto result = calculator.calculate(
+        1L, "KOSPI시리즈", "코스피",new BigDecimal("10"),new BigDecimal("3"));
+
+    // 등락 = 10 - 3 = 7
+    assertThat(result.versus()).isEqualByComparingTo("7");
+    // 등락률 = 7 ÷ 3 × 100 = 233.3333... → 소수 둘째 자리 반올림 → 233.33
+    assertThat(result.fluctuationRate()).isEqualByComparingTo("233.33");
+  }
+
 }
