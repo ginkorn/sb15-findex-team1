@@ -30,7 +30,7 @@ public interface IndexDataRepository extends JpaRepository<IndexData, Long>, Ind
     int deleteAllByIndexInfoIdInBulk(@Param("indexInfoId") Long indexInfoId);
 
     // 특정 지수의 기간별 데이터를 날짜 오름차순으로 조회
-// TODO(D): 대시보드 조회 조건 및 정렬 방식 협의
+    // TODO(D): 대시보드 조회 조건 및 정렬 방식 협의
     List<IndexData> findByIndexInfoIdAndBaseDateBetweenOrderByBaseDateAsc(
         Long indexInfoId,
         LocalDate startDate,
