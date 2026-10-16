@@ -12,7 +12,11 @@ import org.springframework.context.annotation.Configuration;
  * <pre>
  * private final JPAQueryFactory queryFactory;
  * </pre>
- * (기존처럼 {@code new JPAQueryFactory(entityManager)}로 직접 만들어도 동작한다)
+ *
+ * <p>주의: {@code @DataJpaTest}는 JPA 관련 빈만 띄우기 때문에 이 설정이 로드되지 않는다.
+ * Repository 구현체(XxxQueryRepositoryImpl)는 팀 공통 방식대로
+ * {@code new JPAQueryFactory(entityManager)}로 직접 만들어 쓰는 것을 권장한다.
+ * 이 빈은 서비스 등 그 밖의 곳에서 필요할 때 쓴다.
  */
 @Configuration
 public class QuerydslConfig {
