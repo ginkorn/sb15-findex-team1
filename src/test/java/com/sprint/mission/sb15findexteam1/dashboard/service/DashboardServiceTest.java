@@ -1,5 +1,6 @@
 package com.sprint.mission.sb15findexteam1.dashboard.service;
 
+import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
 import static org.assertj.core.api.Assertions.assertThat;     // AssertJ (Hamcrest 아님)
 import static org.mockito.BDDMockito.given;
 
@@ -45,7 +46,7 @@ class DashboardServiceTest {
     return IndexData.builder()
         .indexInfoId(1L)
         .baseDate(date)
-        .sourceType("USER")
+        .sourceType(SourceType.USER)
         .closingPrice(new BigDecimal(closing))
         .build();
   }
@@ -55,7 +56,7 @@ class DashboardServiceTest {
     return IndexData.builder()
         .indexInfoId(indexInfoId)       // 몇 번 지수의 데이터인지
         .baseDate(date)
-        .sourceType("USER")
+        .sourceType(SourceType.USER)
         .closingPrice(new BigDecimal(closing))
         .build();
   }

@@ -1,7 +1,10 @@
 package com.sprint.mission.sb15findexteam1.indexdata.entity;
 
+import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -40,9 +43,10 @@ public class IndexData {
   @Column(name = "base_date", nullable = false)
   private LocalDate baseDate;
 
-  // TODO(A): common.enums.SourceType 완성 후 @Enumerated(EnumType.STRING)으로 변경
+  // 데이터 출처: USER(사용자 등록) 또는 OPEN_API(연동 등록). DB에는 글자 그대로 저장
+  @Enumerated(EnumType.STRING)
   @Column(name = "source_type", length = 20, nullable = false)
-  private String sourceType;
+  private SourceType sourceType;
 
   @Column(name = "market_price", precision = 19, scale = 4)
   private BigDecimal marketPrice;
@@ -75,7 +79,7 @@ public class IndexData {
   public IndexData(
       Long indexInfoId,
       LocalDate baseDate,
-      String sourceType,
+      SourceType sourceType,
       BigDecimal marketPrice,
       BigDecimal closingPrice,
       BigDecimal highPrice,
