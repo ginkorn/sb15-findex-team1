@@ -40,7 +40,7 @@ import org.hibernate.annotations.OnDeleteAction;
  */
 @Entity
 @Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA용 빈 생성자. 생성 메서드는 C가 추가 예정.
+@NoArgsConstructor(access = AccessLevel.PROTECTED) // JPA용 빈 생성자.
 @Table(name = "sync_job")
 public class SyncJob {
 
