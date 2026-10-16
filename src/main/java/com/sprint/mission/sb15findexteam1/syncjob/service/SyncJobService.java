@@ -1,7 +1,6 @@
 package com.sprint.mission.sb15findexteam1.syncjob.service;
 
 import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataCreateRequest;
-import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataDto;
 import com.sprint.mission.sb15findexteam1.indexdata.service.IndexDataService;
 import com.sprint.mission.sb15findexteam1.indexinfo.dto.IndexInfoCreateRequest;
 import com.sprint.mission.sb15findexteam1.indexinfo.dto.IndexInfoSummaryDto;
