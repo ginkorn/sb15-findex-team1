@@ -100,11 +100,10 @@ public class SyncJob {
    * sourceType 지수 정보 연동이면 INDEX_INFO,
    * O지수 데이터 연동이면 INDEX_DATA
    *
-   * 연동 실패 (Open API 오류, 데이터 없음 등) - FAILED
+   * <p> </>연동 실패 (Open API 오류, 데이터 없음 등) - FAILED
    * 연동 성공 - SUCCESS
    */
   public static SyncJob createSyncJob(
-      Long id,
       JobType jobType,
       IndexInfo indexInfo,
       LocalDate targetDate,
@@ -112,7 +111,6 @@ public class SyncJob {
       ResultType result) {
 
     SyncJob syncJob = new SyncJob();
-    syncJob.id = id;
     syncJob.jobType = jobType;
     syncJob.indexInfo = indexInfo;
     syncJob.targetDate = targetDate;
