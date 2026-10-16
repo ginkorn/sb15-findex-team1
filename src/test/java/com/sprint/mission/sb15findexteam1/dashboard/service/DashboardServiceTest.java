@@ -8,6 +8,7 @@ import com.sprint.mission.sb15findexteam1.dashboard.calculator.FluctuationCalcul
 import com.sprint.mission.sb15findexteam1.dashboard.calculator.MovingAverageCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexChartDto;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexPerformanceDto;
+import com.sprint.mission.sb15findexteam1.dashboard.dto.RankedIndexPerformanceDto;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.ChartPeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.PeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.mapper.ChartDataPointMapperImpl;
@@ -243,6 +244,14 @@ class DashboardServiceTest {
     return info;
   }
 
+  // 지수 하나의 일간 성과용 가격을 가짜 Repository에 준비한다 (현재 1/15, 하루 전 1/14)
+  private void givenDailyPrices(Long indexInfoId, String current, String before) {
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(indexInfoId))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 15), current)));
+    given(repository.findLatestOnOrBefore(indexInfoId, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 14), before)));
+  }
+
   @Test
   @DisplayName("관심 지수 성과: 즐겨찾기 지수의 성과를 지수명과 함께 돌려준다")
   void getFavoritePerformances() {
@@ -275,5 +284,98 @@ class DashboardServiceTest {
 
     // when & then: 에러가 아니라 빈 목록
     assertThat(service.getFavoritePerformances(PeriodType.DAILY)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("랭킹: 등락률이 높은 순서로 정렬하고 1부터 순위를 붙인다")
+  void getRankedPerformances_sortedByRate() {
+    // given: 지수 3개 (id 순서로 조회됨), 일간 등락률은 1번 +10%, 2번 -20%, 3번 +5%
+    given(repository.findIndexInfos(null)).willReturn(List.of(
+        indexInfo(1L, "KOSPI시리즈", "코스피"),
+        indexInfo(2L, "KOSDAQ시리즈", "코스닥"),
+        indexInfo(3L, "KOSPI시리즈", "IT 서비스")));
+    givenDailyPrices(1L, "110", "100");
+    givenDailyPrices(2L, "200", "250");
+    givenDailyPrices(3L, "105", "100");
+
+    // when: 전체 지수의 일간 랭킹 (limit 10)
+    List<RankedIndexPerformanceDto> result = service.getRankedPerformances(null, PeriodType.DAILY, 10);
+
+    // then: 등락률 높은 순서 → 1번, 3번, 2번 / 순위는 1, 2, 3
+    assertThat(result).hasSize(3);
+    assertThat(result.get(0).performance().indexInfoId()).isEqualTo(1L);
+    assertThat(result.get(0).rank()).isEqualTo(1);
+    assertThat(result.get(1).performance().indexInfoId()).isEqualTo(3L);
+    assertThat(result.get(1).rank()).isEqualTo(2);
+    assertThat(result.get(2).performance().indexInfoId()).isEqualTo(2L);
+    assertThat(result.get(2).rank()).isEqualTo(3);
+    assertThat(result.get(0).performance().indexName()).isEqualTo("코스피");   // 지수명도 채워져 있다
+  }
+
+  @Test
+  @DisplayName("랭킹: limit만큼만 위에서부터 돌려준다")
+  void getRankedPerformances_limit() {
+    // given: 위와 같은 지수 3개
+    given(repository.findIndexInfos(null)).willReturn(List.of(
+        indexInfo(1L, "KOSPI시리즈", "코스피"),
+        indexInfo(2L, "KOSDAQ시리즈", "코스닥"),
+        indexInfo(3L, "KOSPI시리즈", "IT 서비스")));
+    givenDailyPrices(1L, "110", "100");
+    givenDailyPrices(2L, "200", "250");
+    givenDailyPrices(3L, "105", "100");
+
+    // when: limit을 2로 요청
+    List<RankedIndexPerformanceDto> result = service.getRankedPerformances(null, PeriodType.DAILY, 2);
+
+    // then: 상위 2개(1번, 3번)만 나온다
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).performance().indexInfoId()).isEqualTo(1L);
+    assertThat(result.get(1).performance().indexInfoId()).isEqualTo(3L);
+  }
+
+  @Test
+  @DisplayName("랭킹: 지수 ID를 지정하면 그 지수만 랭킹에 담는다")
+  void getRankedPerformances_byIndexInfoId() {
+    // given: 2번 지수만 조회된다
+    given(repository.findIndexInfos(2L)).willReturn(List.of(indexInfo(2L, "KOSDAQ시리즈", "코스닥")));
+    givenDailyPrices(2L, "200", "250");
+
+    // when
+    List<RankedIndexPerformanceDto> result = service.getRankedPerformances(2L, PeriodType.DAILY, 10);
+
+    // then: 그 지수 하나가 1위로 나온다
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).performance().indexInfoId()).isEqualTo(2L);
+    assertThat(result.get(0).rank()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("랭킹: 등락률이 같으면 지수 id가 작은 쪽이 먼저다")
+  void getRankedPerformances_tie() {
+    // given: 4번, 5번 지수의 등락률이 똑같이 +10% (조회 순서는 일부러 5번이 먼저)
+    given(repository.findIndexInfos(null)).willReturn(List.of(
+        indexInfo(5L, "KOSPI시리즈", "코스피 대형주"),
+        indexInfo(4L, "KOSPI시리즈", "코스피 중형주")));
+    givenDailyPrices(4L, "110", "100");
+    givenDailyPrices(5L, "110", "100");
+
+    // when
+    List<RankedIndexPerformanceDto> result = service.getRankedPerformances(null, PeriodType.DAILY, 10);
+
+    // then: 같은 등락률이면 id가 작은 4번이 1위, 5번이 2위
+    assertThat(result.get(0).performance().indexInfoId()).isEqualTo(4L);
+    assertThat(result.get(0).rank()).isEqualTo(1);
+    assertThat(result.get(1).performance().indexInfoId()).isEqualTo(5L);
+    assertThat(result.get(1).rank()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("랭킹: 지수가 없으면 빈 목록을 돌려준다")
+  void getRankedPerformances_empty() {
+    // given: 조회되는 지수가 없다
+    given(repository.findIndexInfos(null)).willReturn(List.of());
+
+    // when & then: 에러가 아니라 빈 목록
+    assertThat(service.getRankedPerformances(null, PeriodType.DAILY, 10)).isEmpty();
   }
 }

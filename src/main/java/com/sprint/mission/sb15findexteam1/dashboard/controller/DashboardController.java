@@ -2,6 +2,7 @@ package com.sprint.mission.sb15findexteam1.dashboard.controller;
 
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexChartDto;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexPerformanceDto;
+import com.sprint.mission.sb15findexteam1.dashboard.dto.RankedIndexPerformanceDto;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.ChartPeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.PeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.service.DashboardService;
@@ -34,6 +35,15 @@ public class DashboardController {
   public List<IndexPerformanceDto> getFavoritePerformances(
       @RequestParam(defaultValue = "DAILY") PeriodType periodType) {   // 생략하면 DAILY (명세 기본값)
     return dashboardService.getFavoritePerformances(periodType);       // 서비스 결과를 그대로 응답
+  }
+
+  @Operation(summary = "지수 성과 랭킹 조회")
+  @GetMapping("/performance/rank")
+  public List<RankedIndexPerformanceDto> getRankedPerformances(
+      @RequestParam(required = false) Long indexInfoId,                  // 지수 ID (생략하면 전체 지수)
+      @RequestParam(defaultValue = "DAILY") PeriodType periodType,        // 기간 유형 (생략하면 DAILY)
+      @RequestParam(defaultValue = "10") int limit) {                     // 최대 순위 개수 (생략하면 10)
+    return dashboardService.getRankedPerformances(indexInfoId, periodType, limit);   // 서비스 결과를 그대로 응답
   }
 
 }

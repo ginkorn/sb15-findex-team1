@@ -5,6 +5,7 @@ import com.sprint.mission.sb15findexteam1.dashboard.calculator.MovingAverageCalc
 import com.sprint.mission.sb15findexteam1.dashboard.dto.ChartDataPointResponse;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexChartDto;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexPerformanceDto;
+import com.sprint.mission.sb15findexteam1.dashboard.dto.RankedIndexPerformanceDto;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.ChartPeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.PeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.mapper.ChartDataPointMapper;
@@ -12,6 +13,8 @@ import com.sprint.mission.sb15findexteam1.dashboard.repository.DashboardIndexDat
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
 import com.sprint.mission.sb15findexteam1.indexinfo.entity.IndexInfo;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -99,4 +102,27 @@ public class DashboardService {
     return getPerformances(favorites, periodType);                     // 아래 메서드로 성과 계산
   }
 
+  // 지수 성과 랭킹: 등락률 높은 순으로 순위를 붙여 limit개만 돌려준다
+  @Transactional(readOnly = true)
+  public List<RankedIndexPerformanceDto> getRankedPerformances(Long indexInfoId, PeriodType periodType, int limit) {
+
+    // 1) 랭킹에 올릴 지수를 조회한다 (indexInfoId가 null이면 전체, 있으면 그 지수만)
+    List<IndexInfo> indexInfos = repository.findIndexInfos(indexInfoId);
+
+    // 2) 각 지수의 성과를 계산하고, 등락률 높은 순으로 정렬해서 limit개만 남긴다
+    //    등락률이 같으면 지수 id가 작은 쪽을 먼저 둔다
+    List<IndexPerformanceDto> top = getPerformances(indexInfos, periodType).stream()
+        .sorted(Comparator
+            .comparing(IndexPerformanceDto::fluctuationRate, Comparator.reverseOrder())  // 등락률 내림차순
+            .thenComparing(IndexPerformanceDto::indexInfoId))                            // 동점이면 id 오름차순
+        .limit(limit)                                                                    // 위에서부터 limit개
+        .toList();
+
+    // 3) 정렬된 순서대로 1, 2, 3... 순위를 붙여 응답 DTO로 감싼다
+    List<RankedIndexPerformanceDto> result = new ArrayList<>();
+    for (int i = 0; i < top.size(); i++) {
+      result.add(new RankedIndexPerformanceDto(top.get(i), i + 1));    // 순위 = 위치 + 1
+    }
+    return result;
+  }
 }

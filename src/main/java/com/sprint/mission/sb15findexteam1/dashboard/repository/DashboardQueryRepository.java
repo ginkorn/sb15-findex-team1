@@ -13,4 +13,6 @@ public interface DashboardQueryRepository {
   Optional<IndexData> findLatestOnOrBefore(Long indexInfoId, LocalDate baseDate);
 
   List<IndexInfo> findFavoriteIndexInfos();
+
+  List<IndexInfo> findIndexInfos(Long indexInfoId);
 }

@@ -1,5 +1,6 @@
 package com.sprint.mission.sb15findexteam1.dashboard.repository;
 
+import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.QIndexData;
@@ -47,5 +48,19 @@ public class DashboardQueryRepositoryImpl implements DashboardQueryRepository {
         .where(info.favorite.isTrue())     // 즐겨찾기가 true인 것만
         .orderBy(info.id.asc())            // id 오름차순 (등록 순서)
         .fetch();                          // 결과를 목록으로 받음 (없으면 빈 목록)
+  }
+
+  @Override
+  public List<IndexInfo> findIndexInfos(Long indexInfoId) {
+    return queryFactory
+        .selectFrom(info)                               // index_info 테이블에서 조회
+        .where(indexInfoIdEq(indexInfoId))              // 지수 ID가 주어졌을 때만 그 지수로 제한
+        .orderBy(info.id.asc())                         // id 오름차순 (등록 순서)
+        .fetch();                                       // 결과 목록 (없으면 빈 목록)
+  }
+
+  // indexInfoId가 null이면 조건을 만들지 않고(null 반환), 값이 있으면 id가 같은 것만
+  private BooleanExpression indexInfoIdEq(Long indexInfoId) {
+    return indexInfoId == null ? null : info.id.eq(indexInfoId);
   }
 }

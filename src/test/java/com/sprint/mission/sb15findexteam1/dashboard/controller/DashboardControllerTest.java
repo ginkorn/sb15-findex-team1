@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.sprint.mission.sb15findexteam1.dashboard.dto.ChartDataPointResponse;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexChartDto;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexPerformanceDto;
+import com.sprint.mission.sb15findexteam1.dashboard.dto.RankedIndexPerformanceDto;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.ChartPeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.PeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.service.DashboardService;
@@ -79,5 +80,40 @@ class DashboardControllerTest {
     mockMvc.perform(get("/api/index-data/performance/favorite"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$").isEmpty());                          // 빈 배열 []
+  }
+
+  @Test
+  @DisplayName("랭킹: 순위가 붙은 성과 목록을 JSON으로 응답한다")
+  void getRankedPerformances() throws Exception {
+    // given: 서비스가 1위 성과를 돌려준다고 가정
+    IndexPerformanceDto performance = new IndexPerformanceDto(
+        1L, "KOSPI시리즈", "코스피",
+        new BigDecimal("10"), new BigDecimal("10.00"),
+        new BigDecimal("110"), new BigDecimal("100"));
+    given(dashboardService.getRankedPerformances(1L, PeriodType.WEEKLY, 5))
+        .willReturn(List.of(new RankedIndexPerformanceDto(performance, 1)));
+
+    // when & then: GET /api/index-data/performance/rank?indexInfoId=1&periodType=WEEKLY&limit=5
+    mockMvc.perform(get("/api/index-data/performance/rank")
+            .param("indexInfoId", "1")
+            .param("periodType", "WEEKLY")
+            .param("limit", "5"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].rank").value(1))                          // 순위
+        .andExpect(jsonPath("$[0].performance.indexInfoId").value(1))       // 성과는 performance 안에 들어 있다
+        .andExpect(jsonPath("$[0].performance.indexName").value("코스피"))
+        .andExpect(jsonPath("$[0].performance.fluctuationRate").value(10.00));
+  }
+
+  @Test
+  @DisplayName("랭킹: 파라미터를 생략하면 DAILY, 전체 지수, limit 10으로 조회하고 결과가 없으면 빈 배열을 응답한다")
+  void getRankedPerformances_defaults() throws Exception {
+    // given: 기본값으로 호출되면 빈 목록을 돌려준다
+    given(dashboardService.getRankedPerformances(null, PeriodType.DAILY, 10)).willReturn(List.of());
+
+    // when & then: 파라미터 없이 호출
+    mockMvc.perform(get("/api/index-data/performance/rank"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isEmpty());                                // 빈 배열 []
   }
 }
