@@ -29,6 +29,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 지수 정보 서비스 테스트. 노션 요구사항의 핵심 규칙이 지켜지는지 확인한다.
+ *
+ * <ul>
+ *   <li>{@code @SpringBootTest}: 실제 서버처럼 스프링 전체를 띄우고 H2 DB로 테스트한다.</li>
+ *   <li>{@code @Transactional}: 각 테스트가 끝나면 넣은 데이터를 모두 되돌린다. (테스트끼리 영향 없음)</li>
+ *   <li>{@code @DisplayName}: 테스트 결과 화면에 보이는 한글 설명</li>
+ * </ul>
+ *
+ * <p>실행: IntelliJ에서 클래스 옆 초록 삼각형, 또는 {@code ./gradlew test --tests "*IndexInfoServiceTest"}
+ */
 @SpringBootTest
 @Transactional // 테스트가 끝나면 데이터를 되돌린다
 class IndexInfoServiceTest {

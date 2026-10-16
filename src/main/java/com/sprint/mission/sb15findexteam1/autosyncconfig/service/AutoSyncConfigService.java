@@ -18,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
  * 자동 연동 설정 서비스.
  *
  * <p>설정은 지수를 등록할 때 IndexInfoService가 함께 만든다. 여기서는 조회와 켜고 끄기만 한다.
+ * 삭제도 따로 없다. 지수가 삭제되면 DB 규칙(ON DELETE CASCADE)으로 설정도 함께 지워진다.
+ *
+ * <p><b>C가 쓰는 메서드</b>: {@link #findEnabledIndexInfoIds()} — 매일 배치가 연동할 지수 id 목록
  */
 @Service
 @RequiredArgsConstructor
@@ -38,7 +41,10 @@ public class AutoSyncConfigService {
         AutoSyncConfigDto::id);
   }
 
-  /** 켜기/끄기 (PATCH /api/auto-sync-configs/{id}) */
+  /**
+   * 켜기/끄기 (PATCH /api/auto-sync-configs/{id}).
+   * 엔티티 값만 바꾸면 트랜잭션이 끝날 때 JPA가 알아서 UPDATE를 보낸다. (save()를 다시 부르지 않아도 된다)
+   */
   @Transactional
   public AutoSyncConfigDto updateEnabled(Long id, AutoSyncConfigUpdateRequest request) {
     AutoSyncConfig config = autoSyncConfigRepository.findById(id)

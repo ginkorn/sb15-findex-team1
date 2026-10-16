@@ -17,8 +17,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 자동 연동 설정 서비스 테스트.
+ * 지수를 등록하면 설정이 자동으로 생기고, 목록·켜기·필터·배치용 조회가 동작하는지 확인한다.
+ */
 @SpringBootTest
-@Transactional
+@Transactional // 테스트가 끝나면 데이터를 되돌린다
 class AutoSyncConfigServiceTest {
 
   @Autowired AutoSyncConfigService autoSyncConfigService;

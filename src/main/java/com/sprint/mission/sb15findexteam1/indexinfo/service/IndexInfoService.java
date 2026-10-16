@@ -32,6 +32,19 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>지수를 저장할 때는 항상 자동 연동 설정(꺼진 상태)도 함께 만든다 → {@link #register}에 한곳으로 모음</li>
  *   <li>지수를 지우면 그 지수의 지수 데이터도 함께 지운다</li>
  * </ul>
+ *
+ * <p>서비스의 역할은 "주방장"이다. 컨트롤러가 받아 온 요청을 규칙대로 처리하고 Repository로 DB를 다룬다.
+ *
+ * <p><b>{@code @Transactional}이란?</b> 메서드 안의 DB 작업을 "한 묶음"으로 처리한다.
+ * 중간에 예외가 나면 그 묶음의 작업이 모두 취소(롤백)되어, 지수만 저장되고 자동 연동 설정은 빠지는 식의
+ * 반쪽짜리 데이터가 남지 않는다. 클래스에 붙인 {@code readOnly = true}는 "기본은 읽기만 한다"는 뜻이고,
+ * 저장·수정·삭제 메서드에만 {@code @Transactional}을 다시 붙여 쓰기를 허용한다.
+ *
+ * <p><b>다른 파트가 쓰는 메서드</b>
+ * <ul>
+ *   <li>C: {@link #upsertFromOpenApi} — Open API로 받은 지수를 등록·수정</li>
+ *   <li>B·C: {@link #getEntity} — id로 지수를 찾고, 없으면 404 에러</li>
+ * </ul>
  */
 @Service
 @RequiredArgsConstructor
