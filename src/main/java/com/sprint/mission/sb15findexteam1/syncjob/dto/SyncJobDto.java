@@ -1,6 +1,5 @@
 package com.sprint.mission.sb15findexteam1.syncjob.dto;
 
-import com.sprint.mission.sb15findexteam1.indexinfo.entity.IndexInfo;
 import com.sprint.mission.sb15findexteam1.syncjob.enums.JobType;
 import com.sprint.mission.sb15findexteam1.syncjob.enums.ResultType;
 import java.time.LocalDate;
@@ -11,7 +10,7 @@ import java.time.LocalDate;
 public record SyncJobDto(
     Long id,
     JobType jobType,
-    IndexInfo indexInfo,
+    Long indexInfoId,
     LocalDate targetDate,
     String worker,
     String jobTime,

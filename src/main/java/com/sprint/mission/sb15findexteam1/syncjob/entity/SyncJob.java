@@ -100,7 +100,8 @@ public class SyncJob {
    * sourceType 지수 정보 연동이면 INDEX_INFO,
    * O지수 데이터 연동이면 INDEX_DATA
    *
-   * <p> </>연동 실패 (Open API 오류, 데이터 없음 등) - FAILED
+   * <p>
+   * 연동 실패 (Open API 오류, 데이터 없음 등) - FAILED
    * 연동 성공 - SUCCESS
    */
   public static SyncJob createSyncJob(

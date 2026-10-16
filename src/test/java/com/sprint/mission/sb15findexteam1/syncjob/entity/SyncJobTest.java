@@ -26,7 +26,7 @@ class SyncJobTest {
 
     syncJobRepository.save(syncJob);
 
-    syncJob = syncJobRepository.findById(1L).orElseThrow();
+    syncJob = syncJobRepository.findById(syncJob.getId()).orElseThrow();
 
     System.out.println(syncJob.getTargetDate());
   }
