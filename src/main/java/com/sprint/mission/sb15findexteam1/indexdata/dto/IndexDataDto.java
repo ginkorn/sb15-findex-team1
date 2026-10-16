@@ -1,5 +1,6 @@
 package com.sprint.mission.sb15findexteam1.indexdata.dto;
 
+import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -15,8 +16,7 @@ public record IndexDataDto(
     LocalDate baseDate,
 
     // 데이터 출처: USER 또는 OPEN_API
-    // TODO(A): 공통 SourceType Enum 완성 후 변경 검토
-    String sourceType,
+    SourceType sourceType,
 
     // 시가
     BigDecimal marketPrice,
