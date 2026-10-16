@@ -24,11 +24,10 @@ public record IndexDataCreateRequest(
 
   /**
    * Open API 항목의 지수 데이터 값을 변환한다.
-   * 대상 IndexInfo는 별도로 조회해야 하므로 indexInfoId는 아직 설정하지 않는다.
    */
-  public static IndexDataCreateRequest fromOpenApi(Item item) {
+  public static IndexDataCreateRequest fromOpenApi(Long indexInfoId, Item item) {
     return new IndexDataCreateRequest(
-        null,
+        indexInfoId,
         LocalDate.parse(item.basDt(), KRX_DATE_FORMAT),
         new BigDecimal(item.mkp()),
         new BigDecimal(item.clpr()),
