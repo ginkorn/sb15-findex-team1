@@ -9,6 +9,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataSearchCondition;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.QIndexData;
+import com.sprint.mission.sb15findexteam1.common.pagination.CursorPaging;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,35 +17,22 @@ import java.util.List;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class IndexDataQueryRepositoryImpl
-    implements IndexDataQueryRepository {
+public class IndexDataQueryRepositoryImpl implements IndexDataQueryRepository {
 
-  // QueryDSL이 자동 생성한 지수 데이터 조회용 클래스
   private static final QIndexData data = QIndexData.indexData;
 
-  // JPA를 이용해 동적 쿼리를 생성하는 객체
   private final JPAQueryFactory queryFactory;
 
-  // EntityManager를 주입받아 QueryDSL 사용 준비
   public IndexDataQueryRepositoryImpl(EntityManager entityManager) {
     this.queryFactory = new JPAQueryFactory(entityManager);
   }
 
   // 검색 조건 + 정렬 + 커서를 적용하여 한 페이지 조회
   @Override
-  public List<IndexData> findPageByCondition(
-      IndexDataSearchCondition condition
-  ) {
+  public List<IndexData> findPageByCondition(IndexDataSearchCondition condition) {
     String sortField = sortField(condition);
     boolean ascending = isAscending(condition);
-    int size = condition.size() == null ? 10 : condition.size();
-
-    // 조회 개수는 1개 이상이어야 함
-    if (size < 1) {
-      throw new IllegalArgumentException(
-          "size는 1 이상이어야 합니다."
-      );
-    }
+    int size = CursorPaging.normalizeSize(condition.size());
 
     // 지수 ID와 날짜 조건 생성
     BooleanBuilder builder = createFilter(condition);
@@ -57,39 +45,34 @@ public class IndexDataQueryRepositoryImpl
       builder.and(cursorCondition);
     }
 
-    // TODO(A): 공통 페이지 응답 DTO 연결은 Service에서 처리
     // 다음 페이지 여부 판단을 위해 size보다 1개 더 조회
     return queryFactory
         .selectFrom(data)
         .where(builder)
         .orderBy(
             createOrder(sortField, ascending),
-            data.id.asc()
+            ascending ? data.id.asc() : data.id.desc()
         )
         .limit((long) size + 1)
         .fetch();
   }
 
-  // CSV 다운로드에 사용할 전체 데이터 조회
   @Override
-  public List<IndexData> findForCsv(
-      IndexDataSearchCondition condition
-  ) {
+  public List<IndexData> findForCsv(IndexDataSearchCondition condition) {
+
+    String field = sortField(condition);
+    boolean ascending = isAscending(condition);
+
     return queryFactory
         .selectFrom(data)
         .where(createFilter(condition))
-        .orderBy(
-            createOrder(sortField(condition), isAscending(condition)),
-            data.id.asc()
-        )
+        .orderBy(createOrder(field, ascending), ascending ? data.id.asc() : data.id.desc())
         .fetch();
   }
 
   // 검색 필터에 해당하는 전체 데이터 개수 조회
   @Override
-  public long countByCondition(
-      IndexDataSearchCondition condition
-  ) {
+  public long countByCondition(IndexDataSearchCondition condition) {
     Long count = queryFactory
         .select(data.id.count())
         .from(data)
@@ -100,9 +83,7 @@ public class IndexDataQueryRepositoryImpl
   }
 
   // 지수 ID, 시작 날짜, 종료 날짜 필터 생성
-  private BooleanBuilder createFilter(
-      IndexDataSearchCondition condition
-  ) {
+  private BooleanBuilder createFilter(IndexDataSearchCondition condition) {
     BooleanBuilder builder = new BooleanBuilder();
 
     // 특정 지수만 조회
@@ -138,20 +119,9 @@ public class IndexDataQueryRepositoryImpl
         : field;
   }
 
-  // 정렬 방향이 없으면 내림차순 사용
+  // A 파트와 동일한 정렬 방향 정책 적용함
   private boolean isAscending(IndexDataSearchCondition condition) {
-    String direction = condition.sortDirection();
-
-    if (direction == null || direction.isBlank()) {
-      return false;
-    }
-
-    if (!direction.equalsIgnoreCase("asc")
-        && !direction.equalsIgnoreCase("desc")) {
-      throw new IllegalArgumentException("올바르지 않은 정렬 방향입니다.");
-    }
-
-    return direction.equalsIgnoreCase("asc");
+    return CursorPaging.isAsc(condition.sortDirection());
   }
 
   // 프론트엔드에서 허용한 10개 필드에 대한 정렬 조건 생성
@@ -159,8 +129,7 @@ public class IndexDataQueryRepositoryImpl
       String field, boolean ascending
   ) {
     return switch (field) {
-      case "baseDate" ->
-          ascending ? data.baseDate.asc() : data.baseDate.desc();
+      case "baseDate" -> ascending ? data.baseDate.asc() : data.baseDate.desc();
 
       case "marketPrice" ->
           (ascending ? data.marketPrice.asc() : data.marketPrice.desc()).nullsLast();
@@ -168,14 +137,11 @@ public class IndexDataQueryRepositoryImpl
       case "closingPrice" ->
           (ascending ? data.closingPrice.asc() : data.closingPrice.desc()).nullsLast();
 
-      case "highPrice" ->
-          (ascending ? data.highPrice.asc() : data.highPrice.desc()).nullsLast();
+      case "highPrice" -> (ascending ? data.highPrice.asc() : data.highPrice.desc()).nullsLast();
 
-      case "lowPrice" ->
-          (ascending ? data.lowPrice.asc() : data.lowPrice.desc()).nullsLast();
+      case "lowPrice" -> (ascending ? data.lowPrice.asc() : data.lowPrice.desc()).nullsLast();
 
-      case "versus" ->
-          (ascending ? data.versus.asc() : data.versus.desc()).nullsLast();
+      case "versus" -> (ascending ? data.versus.asc() : data.versus.desc()).nullsLast();
 
       case "fluctuationRate" ->
           (ascending ? data.fluctuationRate.asc() : data.fluctuationRate.desc()).nullsLast();
@@ -220,8 +186,7 @@ public class IndexDataQueryRepositoryImpl
     }
 
     return switch (field) {
-      case "baseDate" ->
-          dateCursor(LocalDate.parse(cursor), idAfter, ascending);
+      case "baseDate" -> dateCursor(LocalDate.parse(cursor), idAfter, ascending);
 
       case "marketPrice" ->
           numberCursor(data.marketPrice, decimalValue(cursor), idAfter, ascending);
@@ -229,14 +194,11 @@ public class IndexDataQueryRepositoryImpl
       case "closingPrice" ->
           numberCursor(data.closingPrice, decimalValue(cursor), idAfter, ascending);
 
-      case "highPrice" ->
-          numberCursor(data.highPrice, decimalValue(cursor), idAfter, ascending);
+      case "highPrice" -> numberCursor(data.highPrice, decimalValue(cursor), idAfter, ascending);
 
-      case "lowPrice" ->
-          numberCursor(data.lowPrice, decimalValue(cursor), idAfter, ascending);
+      case "lowPrice" -> numberCursor(data.lowPrice, decimalValue(cursor), idAfter, ascending);
 
-      case "versus" ->
-          numberCursor(data.versus, decimalValue(cursor), idAfter, ascending);
+      case "versus" -> numberCursor(data.versus, decimalValue(cursor), idAfter, ascending);
 
       case "fluctuationRate" ->
           numberCursor(data.fluctuationRate, decimalValue(cursor), idAfter, ascending);
@@ -244,8 +206,7 @@ public class IndexDataQueryRepositoryImpl
       case "tradingQuantity" ->
           numberCursor(data.tradingQuantity, longValue(cursor), idAfter, ascending);
 
-      case "tradingPrice" ->
-          numberCursor(data.tradingPrice, longValue(cursor), idAfter, ascending);
+      case "tradingPrice" -> numberCursor(data.tradingPrice, longValue(cursor), idAfter, ascending);
 
       case "marketTotalAmount" ->
           numberCursor(data.marketTotalAmount, longValue(cursor), idAfter, ascending);
@@ -256,7 +217,7 @@ public class IndexDataQueryRepositoryImpl
     };
   }
 
-  // 날짜 정렬에서 마지막으로 조회한 데이터 이후를 검색
+  // 날짜 정렬 시 마지막 데이터 이후부터 조회
   private BooleanExpression dateCursor(
       LocalDate cursor, Long idAfter, boolean ascending
   ) {
@@ -264,50 +225,58 @@ public class IndexDataQueryRepositoryImpl
         ? data.baseDate.gt(cursor)
         : data.baseDate.lt(cursor);
 
-    return next.or(
-        data.baseDate.eq(cursor).and(data.id.gt(idAfter))
-    );
+    BooleanExpression sameDate = data.baseDate.eq(cursor)
+        .and(ascending
+            ? data.id.gt(idAfter)
+            : data.id.lt(idAfter));
+
+    return next.or(sameDate);
   }
 
-  // 숫자 정렬에서 커서 값과 ID를 이용해 다음 데이터를 검색
+  // 숫자 정렬에서 null 값까지 포함해 다음 페이지 조회
   private <T extends Number & Comparable<?>> BooleanExpression numberCursor(
       NumberExpression<T> path,
       T cursor,
       Long idAfter,
       boolean ascending
   ) {
-    // 정렬 값이 null인 데이터도 페이지네이션 가능하도록 처리
+
+    // 정렬 방향에 맞춰 마지막 ID 이후 조건 생성
+    BooleanExpression nextId = ascending
+        ? data.id.gt(idAfter)
+        : data.id.lt(idAfter);
+
+    // 이전 페이지 마지막 정렬 값이 null인 경우
     if (cursor == null) {
-      return path.isNull().and(data.id.gt(idAfter));
+      return path.isNull().and(nextId);
     }
 
+    // 이전 정렬 값보다 뒤에 있는 데이터
     BooleanExpression next = ascending
         ? path.gt(cursor)
         : path.lt(cursor);
 
+    // 정렬 값이 같다면 ID로 구분
+    BooleanExpression sameValue = path.eq(cursor).and(nextId);
+
+    // null 값은 정렬 방향과 상관없이 마지막에 배치
     return next
-        .or(path.eq(cursor).and(data.id.gt(idAfter)))
+        .or(sameValue)
         .or(path.isNull());
   }
 
-  // BigDecimal 커서 문자열 변환
+  // BigDecimal 커서 변환
   private BigDecimal decimalValue(String cursor) {
-    return "__NULL__".equals(cursor)
+    return CursorPaging.NULL_CURSOR.equals(cursor)
         ? null
         : new BigDecimal(cursor);
   }
 
-  // Long 커서 문자열 변환
+  // Long 커서 변환
   private Long longValue(String cursor) {
-    return "__NULL__".equals(cursor)
+    return CursorPaging.NULL_CURSOR.equals(cursor)
         ? null
         : Long.valueOf(cursor);
   }
-
-  // TODO(A): 페이지 응답 조립 시 마지막 행의 정렬 값을
-  // nextCursor로 변환하고, 마지막 행의 id를 nextIdAfter로 전달
-  //
-  // TODO(A): 정렬 값이 null인 경우 "__NULL__"로 전달하도록 협의
-  //
-  // TODO(A): 기본 size, 최대 size 등 공통 정책 최종 확인
 }
+

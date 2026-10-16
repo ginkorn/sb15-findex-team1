@@ -5,7 +5,6 @@ import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataSearchCondition
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
 import java.util.List;
 
-// QueryDSL로 구현할 지수 데이터 조회 기능을 정의하는 인터페이스
 public interface IndexDataQueryRepository {
 
   // 검색 조건에 맞는 지수 데이터를 커서 페이지네이션으로 조회

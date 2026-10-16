@@ -11,17 +11,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-// 지수 데이터를 CSV 파일 형식으로 변환하는 서비스
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class IndexDataCsvService {
 
-  // 지수 데이터를 DB에서 조회하는 Repository
   private final IndexDataRepository indexDataRepository;
 
-  // CSV 파일에 표시할 열 제목
-  // TODO(D): 프론트엔드와 CSV 열 이름 및 순서 최종 확인
   private static final String CSV_HEADER =
       "id,indexInfoId,baseDate,sourceType,"
           + "marketPrice,closingPrice,highPrice,lowPrice,"
@@ -57,7 +53,6 @@ public class IndexDataCsvService {
   // IndexData 한 개를 CSV 한 줄로 변환
   private void appendRow(StringBuilder csv, IndexData data) {
 
-    // Entity의 각 필드를 CSV 열 순서대로 작성
     appendValues(
         csv,
         data.getId(),
@@ -74,9 +69,6 @@ public class IndexDataCsvService {
         data.getTradingPrice(),
         data.getMarketTotalAmount()
     );
-
-    // TODO(A): IndexInfo 연관관계 변경 시
-    // getIndexInfoId() 접근 방식 확인
   }
 
   // 여러 필드 값을 쉼표로 구분하여 CSV 한 줄 생성
@@ -89,11 +81,9 @@ public class IndexDataCsvService {
         csv.append(",");
       }
 
-      // CSV 규칙에 맞게 값을 변환하여 추가
       csv.append(escapeCsv(values[i]));
     }
 
-    // 한 행이 끝나면 줄바꿈
     csv.append("\r\n");
   }
 

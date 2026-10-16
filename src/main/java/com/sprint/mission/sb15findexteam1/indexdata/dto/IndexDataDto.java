@@ -6,7 +6,6 @@ import java.time.LocalDate;
 // 지수 데이터 조회 결과를 프론트엔드에 전달하는 DTO
 public record IndexDataDto(
 
-    // 지수 데이터 고유 ID
     Long id,
 
     // 해당 데이터가 속한 지수 정보 ID

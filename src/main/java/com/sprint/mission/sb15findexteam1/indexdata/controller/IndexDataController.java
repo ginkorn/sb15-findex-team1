@@ -7,6 +7,7 @@ import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataSearchCondition
 import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataUpdateRequest;
 import com.sprint.mission.sb15findexteam1.indexdata.service.IndexDataCsvService;
 import com.sprint.mission.sb15findexteam1.indexdata.service.IndexDataService;
+import com.sprint.mission.sb15findexteam1.common.dto.CursorPageResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
@@ -39,8 +40,6 @@ public class IndexDataController {
   // 지수 데이터 CSV 파일 생성을 담당하는 서비스
   private final IndexDataCsvService indexDataCsvService;
 
-
-  // 지수 데이터 등록 API
   // POST /api/index-data
   @Operation(summary = "지수 데이터 등록")
   @PostMapping
@@ -57,8 +56,6 @@ public class IndexDataController {
         .body(response);
   }
 
-
-  // 지수 데이터 수정 API
   // PATCH /api/index-data/{id}
   @Operation(summary = "지수 데이터 수정")
   @PatchMapping("/{id}")
@@ -74,8 +71,6 @@ public class IndexDataController {
     return ResponseEntity.ok(response);
   }
 
-
-  // 지수 데이터 삭제 API
   // DELETE /api/index-data/{id}
   @Operation(summary = "지수 데이터 삭제")
   @DeleteMapping("/{id}")
@@ -90,8 +85,67 @@ public class IndexDataController {
     return ResponseEntity.noContent().build();
   }
 
+  // GET /api/index-data
+  @Operation(summary = "지수 데이터 목록 조회")
+  @GetMapping
+  public ResponseEntity<CursorPageResponseDto<IndexDataDto>> findAll(
 
-  // 지수 데이터 CSV 다운로드 API
+      // 조회할 지수 정보 ID (선택)
+      @RequestParam(required = false)
+      Long indexInfoId,
+
+      // 검색 시작 날짜 (선택)
+      @RequestParam(required = false)
+      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+      LocalDate startDate,
+
+      // 검색 종료 날짜 (선택)
+      @RequestParam(required = false)
+      @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+      LocalDate endDate,
+
+      // 다음 페이지 조회를 위한 커서 (선택)
+      @RequestParam(required = false)
+      String cursor,
+
+      // 마지막으로 조회한 데이터 ID (선택)
+      @RequestParam(required = false)
+      Long idAfter,
+
+      // 정렬할 필드 (선택)
+      @RequestParam(required = false)
+      String sortField,
+
+      // 정렬 방향: asc 또는 desc (선택)
+      @RequestParam(required = false)
+      String sortDirection,
+
+      // 한 페이지에 조회할 데이터 개수 (선택)
+      @RequestParam(required = false)
+      Integer size
+  ) {
+
+    // 요청받은 검색 조건을 DTO로 변환
+    IndexDataSearchCondition condition =
+        new IndexDataSearchCondition(
+            indexInfoId,
+            startDate,
+            endDate,
+            idAfter,
+            cursor,
+            sortField,
+            sortDirection,
+            size
+        );
+
+    // Service를 통해 목록 조회 및 페이지 정보 생성
+    CursorPageResponseDto<IndexDataDto> response =
+        indexDataService.findAll(condition);
+
+    // 조회 성공 시 HTTP 200 반환
+    return ResponseEntity.ok(response);
+  }
+
   // GET /api/index-data/export/csv
   @Operation(summary = "지수 데이터 CSV 다운로드")
   @GetMapping("/export/csv")
@@ -149,13 +203,6 @@ public class IndexDataController {
         .body(csv);
   }
 
-
-  // TODO(A): 공통 CursorPageResponse가 준비되면
-  // GET /api/index-data 목록 조회 API 구현
-  // 프론트엔드에서 요구하는 content, nextCursor,
-  // nextIdAfter, size, totalElements, hasNext 반환 필요
-
   // TODO(A): IndexInfo 연관관계 및 공통 예외 처리 연결
-
   // TODO(B): @Valid를 이용한 요청 데이터 유효성 검증
 }
