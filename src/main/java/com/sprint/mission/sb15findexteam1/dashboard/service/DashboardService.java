@@ -1,5 +1,7 @@
 package com.sprint.mission.sb15findexteam1.dashboard.service;
 
+import com.sprint.mission.sb15findexteam1.common.exception.BusinessException;
+import com.sprint.mission.sb15findexteam1.common.exception.ErrorCode;
 import com.sprint.mission.sb15findexteam1.dashboard.calculator.FluctuationCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.calculator.MovingAverageCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.ChartDataPointResponse;
@@ -30,36 +32,44 @@ public class DashboardService {
   private final ChartDataPointMapper chartDataPointMapper;
   private final FluctuationCalculator fluctuationCalculator;
 
-  @Transactional(readOnly = true)     // 조회 전용 트랜잭션
+  @Transactional(readOnly = true)
   public IndexChartDto getChart(Long indexInfoId, ChartPeriodType periodType) {
 
-    // 1) 이 지수의 가장 최근 데이터 날짜를 기준일(to)로 삼는다
-    LocalDate to = repository.findTopByIndexInfoIdOrderByBaseDateDesc(indexInfoId)
-        .orElseThrow()                  // 데이터가 없으면 예외 (자세한 처리는 나중 사이클)
-        .getBaseDate();                 // 그 데이터의 날짜만 꺼낸다
+    // 1) 지수 정보를 조회한다. 없는 지수면 404 (공통 예외 핸들러가 응답으로 바꿔 줌)
+    List<IndexInfo> infos = repository.findIndexInfos(indexInfoId);
+    if (infos.isEmpty()) {
+      throw new BusinessException(ErrorCode.INDEX_INFO_NOT_FOUND, "id=" + indexInfoId);
+    }
+    IndexInfo info = infos.get(0);
 
-    // 2) 기간 종류로 시작 날짜를 계산한다 (MONTHLY면 to - 1개월)
+    // 2) 이 지수의 가장 최근 시세를 찾는다. 시세가 하나도 없으면 빈 차트로 응답한다
+    Optional<IndexData> latest = repository.findTopByIndexInfoIdOrderByBaseDateDesc(indexInfoId);
+    if (latest.isEmpty()) {
+      return new IndexChartDto(indexInfoId, info.getIndexClassification(), info.getIndexName(),
+          periodType.name(), List.of(), List.of(), List.of());
+    }
+
+    // 3) 가장 최근 날짜를 끝(to)으로, 기간 종류로 시작(from)을 계산한다 (MONTHLY면 to - 1개월)
+    LocalDate to = latest.get().getBaseDate();
     LocalDate from = periodType.startDate(to);
 
-    // 3) from ~ to 기간의 데이터를 날짜 오름차순으로 조회한다
+    // 4) from ~ to 기간의 시세를 날짜 오름차순으로 조회하고 (날짜, 종가) 목록으로 바꾼다
     List<IndexData> rows = repository.findByIndexInfoIdAndBaseDateBetweenOrderByBaseDateAsc(indexInfoId, from, to);
-
-    // 4) 엔티티 목록을 차트용 (날짜, 종가) 목록으로 변환한다
     List<ChartDataPointResponse> dataPoints = chartDataPointMapper.toPoints(rows);
 
-    // 4-1) 같은 종가 목록으로 이동평균을 계산한다 (window만 5, 20으로 다름)
+    // 5) 같은 종가 목록으로 이동평균을 계산한다
     List<ChartDataPointResponse> ma5 = movingAverageCalculator.calculate(dataPoints, 5);
     List<ChartDataPointResponse> ma20 = movingAverageCalculator.calculate(dataPoints, 20);
 
-    // 5) 응답 DTO를 조립한다
+    // 6) 응답 DTO를 조립한다 (이제 지수명, 분류명도 채운다)
     return new IndexChartDto(
         indexInfoId,
-        null,    // 지수 분류명 (IndexInfo 병합 후 채움)
-        null,                    // 지수명 (IndexInfo 병합 후 채움)
+        info.getIndexClassification(),   // 지수 분류명
+        info.getIndexName(),             // 지수명
         periodType.name(),
-        dataPoints,              // 종가
-        ma5,                     // 5일 이동평균
-        ma20);                   // 20일 이동평균
+        dataPoints,
+        ma5,
+        ma20);
   }
 
   // 지수 정보 목록의 성과를 입력 순서대로 계산한다. 데이터가 없는 지수는 건너뛴다
@@ -105,7 +115,7 @@ public class DashboardService {
   // 지수 성과 랭킹: 등락률 높은 순으로 순위를 붙여 limit개만 돌려준다
   @Transactional(readOnly = true)
   public List<RankedIndexPerformanceDto> getRankedPerformances(Long indexInfoId, PeriodType periodType, int limit) {
-
+    int size = (limit <= 0 || limit > 100) ? 10 : limit;
     // 1) 랭킹에 올릴 지수를 조회한다 (indexInfoId가 null이면 전체, 있으면 그 지수만)
     List<IndexInfo> indexInfos = repository.findIndexInfos(indexInfoId);
 
@@ -115,7 +125,7 @@ public class DashboardService {
         .sorted(Comparator
             .comparing(IndexPerformanceDto::fluctuationRate, Comparator.reverseOrder())  // 등락률 내림차순
             .thenComparing(IndexPerformanceDto::indexInfoId))                            // 동점이면 id 오름차순
-        .limit(limit)                                                                    // 위에서부터 limit개
+        .limit(size)                                                                    // 위에서부터 limit개
         .toList();
 
     // 3) 정렬된 순서대로 1, 2, 3... 순위를 붙여 응답 DTO로 감싼다

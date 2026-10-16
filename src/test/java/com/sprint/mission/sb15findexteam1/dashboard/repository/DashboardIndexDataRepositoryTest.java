@@ -40,13 +40,24 @@ class DashboardIndexDataRepositoryTest {
         favorite);                            // 즐겨찾기 여부 ← 이번 테스트의 핵심
   }
 
-  // 지수 1번의 데이터 3개(1/14, 1/15, 2/14)와, 다른 지수(2번)의 데이터 1개를 저장해 둔다
+  private Long indexId1;   // 테스트용 1번 지수의 실제 id
+  private Long indexId2;   // 테스트용 2번 지수의 실제 id
+
+  // 지수 정보 2개를 먼저 저장하고, 그 지수에 속한 시세를 저장해 둔다
   @BeforeEach
   void setUp() {
-    repository.save(data(1L, LocalDate.of(2025, 1, 14), "100"));
-    repository.save(data(1L, LocalDate.of(2025, 1, 15), "110"));
-    repository.save(data(1L, LocalDate.of(2025, 2, 14), "120"));
-    repository.save(data(2L, LocalDate.of(2025, 1, 15), "999"));   // 다른 지수 (조회되면 안 됨)
+    // 시세는 존재하는 지수에만 저장할 수 있으므로(외래 키) 지수 정보를 먼저 만든다
+    IndexInfo info1 = indexInfo("테스트분류", "기준지수A", false);
+    IndexInfo info2 = indexInfo("테스트분류", "기준지수B", false);
+    entityManager.persist(info1);
+    entityManager.persist(info2);
+    indexId1 = info1.getId();     // DB가 만들어 준 실제 id
+    indexId2 = info2.getId();
+
+    repository.save(data(indexId1, LocalDate.of(2025, 1, 14), "100"));
+    repository.save(data(indexId1, LocalDate.of(2025, 1, 15), "110"));
+    repository.save(data(indexId1, LocalDate.of(2025, 2, 14), "120"));
+    repository.save(data(indexId2, LocalDate.of(2025, 1, 15), "999"));   // 다른 지수 (조회되면 안 됨)
   }
 
   // 테스트용 IndexData를 만드는 도우미 (종가와 날짜만 의미 있음)
@@ -64,7 +75,7 @@ class DashboardIndexDataRepositoryTest {
   @DisplayName("[JPA] 기간 내 데이터를 날짜 오름차순으로 조회한다")
   void jpa_between() {
     List<IndexData> result = repository.findByIndexInfoIdAndBaseDateBetweenOrderByBaseDateAsc(
-        1L, LocalDate.of(2025, 1, 14), LocalDate.of(2025, 2, 14));
+        indexId1, LocalDate.of(2025, 1, 14), LocalDate.of(2025, 2, 14));
 
     // 조회된 각 행의 날짜와 종가를 출력한다 (확인용)
     for (IndexData d : result) {
@@ -80,7 +91,7 @@ class DashboardIndexDataRepositoryTest {
   @Test
   @DisplayName("[JPA] 마지막 데이터 날짜를 조회한다")
   void jpa_latest() {
-    Optional<IndexData> latest = repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L);
+    Optional<IndexData> latest = repository.findTopByIndexInfoIdOrderByBaseDateDesc(indexId1);
 
     assertThat(latest).isPresent();
     assertThat(latest.get().getBaseDate()).isEqualTo(LocalDate.of(2025, 2, 14));
@@ -93,7 +104,7 @@ class DashboardIndexDataRepositoryTest {
   @DisplayName("[QueryDSL] 기준일 당일 데이터가 있으면 당일 데이터를 조회한다")
   void findLatestOnOrBefore_sameDay() {
     // when: 2025-02-14 이전(포함) 중 가장 최근 데이터를 찾는다
-    Optional<IndexData> result = repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 2, 14));
+    Optional<IndexData> result = repository.findLatestOnOrBefore(indexId1, LocalDate.of(2025, 2, 14));
 
     // then: 2/14 데이터(종가 120)가 나와야 한다
     assertThat(result).isPresent();
@@ -106,7 +117,7 @@ class DashboardIndexDataRepositoryTest {
   @DisplayName("[QueryDSL] 기준일에 데이터가 없으면 이전 중 가장 가까운 날을 조회한다")
   void findLatestOnOrBefore_gap() {
     // when: 2025-02-01에는 데이터가 없다 (있는 날은 1/14, 1/15, 2/14)
-    Optional<IndexData> result = repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 2, 1));
+    Optional<IndexData> result = repository.findLatestOnOrBefore(indexId1, LocalDate.of(2025, 2, 1));
 
     // then: 2/1 이전 중 가장 가까운 1/15 데이터(종가 110)가 나와야 한다
     assertThat(result).isPresent();
@@ -160,7 +171,7 @@ class DashboardIndexDataRepositoryTest {
   @Test
   @DisplayName("[QueryDSL] indexInfoId가 없으면 전체 지수 정보를 id 순서로 조회한다")
   void findIndexInfos_all() {
-    // given: 즐겨찾기 여부와 상관없이 3개 저장
+    // given: setUp이 이미 2개(기준지수A, 기준지수B)를 저장해 두었고, 여기서 3개를 더 저장
     entityManager.persist(indexInfo("KOSPI시리즈", "코스피", true));
     entityManager.persist(indexInfo("KOSPI시리즈", "코스피 200", false));
     entityManager.persist(indexInfo("KOSDAQ시리즈", "코스닥", false));
@@ -168,9 +179,9 @@ class DashboardIndexDataRepositoryTest {
     // when: 지수 ID를 지정하지 않는다
     List<IndexInfo> result = repository.findIndexInfos(null);
 
-    // then: 전체 3개가 저장한(id) 순서대로 나온다
+    // then: 전체 5개가 저장한(id) 순서대로 나온다 (setUp의 2개가 먼저)
     assertThat(result).extracting(IndexInfo::getIndexName)
-        .containsExactly("코스피", "코스피 200", "코스닥");
+        .containsExactly("기준지수A", "기준지수B", "코스피", "코스피 200", "코스닥");
   }
 
   @Test

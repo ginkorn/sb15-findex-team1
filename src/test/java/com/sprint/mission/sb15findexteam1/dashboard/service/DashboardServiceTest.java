@@ -67,6 +67,11 @@ class DashboardServiceTest {
   @Test
   @DisplayName("차트는 기간 내 종가를 날짜 오름차순 dataPoints로 돌려준다")
   void getChart_dataPoints() {
+
+    // ★ 새로 추가하는 부분 (1번 지수 정보가 있다)
+    given(repository.findIndexInfos(1L))
+        .willReturn(List.of(indexInfo(1L, "KOSPI시리즈", "코스피")));
+
     // given: 질문 ① "1번 지수의 가장 최근 데이터는?" → 2/14 데이터
     LocalDate to = LocalDate.of(2025, 2, 14);
     given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
@@ -93,6 +98,8 @@ class DashboardServiceTest {
   @Test
   @DisplayName("차트는 종가로 계산한 5일·20일 이동평균을 돌려준다")
   void getChart_movingAverages() {
+    given(repository.findIndexInfos(1L))
+        .willReturn(List.of(indexInfo(1L, "KOSPI시리즈", "코스피")));
     // given: 이 지수의 마지막 데이터 날짜는 2025-01-19
     LocalDate to = LocalDate.of(2025, 1, 19);
     given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))

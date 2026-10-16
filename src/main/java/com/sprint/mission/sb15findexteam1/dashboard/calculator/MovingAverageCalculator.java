@@ -45,7 +45,6 @@ public class MovingAverageCalculator {
       result.add(new ChartDataPointResponse(prices.get(i).date(), average));
     }
 
-    System.out.println(result);
     // 모든 날짜의 계산이 끝난 목록을 돌려준다
     return result;
   }
