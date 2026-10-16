@@ -1,10 +1,8 @@
 package com.sprint.mission.sb15findexteam1.indexinfo.dto;
 
 import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
-import com.sprint.mission.sb15findexteam1.openapi.dto.OpenApiResponseDto.Item;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 /**
  * 지수 정보 응답 = 등록·조회·수정·목록 API가 돌려주는 지수 하나의 모양.

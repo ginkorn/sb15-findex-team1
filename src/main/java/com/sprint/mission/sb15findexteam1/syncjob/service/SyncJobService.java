@@ -1,15 +1,12 @@
 package com.sprint.mission.sb15findexteam1.syncjob.service;
 
 import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataCreateRequest;
-import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
 import com.sprint.mission.sb15findexteam1.indexdata.service.IndexDataService;
 import com.sprint.mission.sb15findexteam1.indexinfo.dto.IndexInfoCreateRequest;
-import com.sprint.mission.sb15findexteam1.indexinfo.dto.IndexInfoDto;
 import com.sprint.mission.sb15findexteam1.indexinfo.entity.IndexInfo;
 import com.sprint.mission.sb15findexteam1.indexinfo.service.IndexInfoService;
 import com.sprint.mission.sb15findexteam1.openapi.client.OpenApiClient;
 import com.sprint.mission.sb15findexteam1.openapi.dto.OpenApiResponseDto.Item;
-import com.sprint.mission.sb15findexteam1.syncjob.dto.IndexDataSyncRequest;
 import com.sprint.mission.sb15findexteam1.syncjob.dto.SyncJobDto;
 import com.sprint.mission.sb15findexteam1.syncjob.entity.SyncJob;
 import com.sprint.mission.sb15findexteam1.syncjob.enums.JobType;

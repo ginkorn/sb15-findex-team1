@@ -1,6 +1,5 @@
 package com.sprint.mission.sb15findexteam1.indexinfo.dto;
 
-import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
 import com.sprint.mission.sb15findexteam1.openapi.dto.OpenApiResponseDto.Item;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
