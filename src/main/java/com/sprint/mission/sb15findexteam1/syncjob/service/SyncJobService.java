@@ -3,10 +3,12 @@ package com.sprint.mission.sb15findexteam1.syncjob.service;
 import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataCreateRequest;
 import com.sprint.mission.sb15findexteam1.indexdata.service.IndexDataService;
 import com.sprint.mission.sb15findexteam1.indexinfo.dto.IndexInfoCreateRequest;
+import com.sprint.mission.sb15findexteam1.indexinfo.dto.IndexInfoSummaryDto;
 import com.sprint.mission.sb15findexteam1.indexinfo.entity.IndexInfo;
 import com.sprint.mission.sb15findexteam1.indexinfo.service.IndexInfoService;
 import com.sprint.mission.sb15findexteam1.openapi.client.OpenApiClient;
 import com.sprint.mission.sb15findexteam1.openapi.dto.OpenApiResponseDto.Item;
+import com.sprint.mission.sb15findexteam1.syncjob.dto.IndexDataSyncRequest;
 import com.sprint.mission.sb15findexteam1.syncjob.dto.SyncJobDto;
 import com.sprint.mission.sb15findexteam1.syncjob.entity.SyncJob;
 import com.sprint.mission.sb15findexteam1.syncjob.enums.JobType;
@@ -16,6 +18,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -43,21 +47,59 @@ public class SyncJobService {
         .toList();
   }
 
-  /**
-   * todo: IndexData의 upsert가 완성된 뒤에 진행
-  public List<SyncJobDto> syncIndexData(IndexDataSyncRequest request) {
-    LocalDate from = LocalDate.parse(request.baseDateFrom());
-    LocalDate to = LocalDate.parse(request.baseDateTo());
+  public List<SyncJobDto> syncIndexData(IndexDataSyncRequest request, String worker) {
+    LocalDate from = request.baseDateFrom();
+    LocalDate to = request.baseDateTo();
 
     if (from.isAfter(to)) throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다");
 
+    List<Long> indexInfoIds = request.indexInfoIds();
+    List<SyncJobDto> result = new ArrayList<>();
+
+
+    // indexInfoIds가 비어있을 수도 있는데, 이러면 전체 지수를 조회한다는 뜻이므로
+    // Summary 함수를 통해 전체 IndexInfo Id값을 불러와서 IndexInfoIds 변수를 채운다.
+    // 그 뒤에 targetIndexInfos 에서 idxClassification과 idxNm으로 구체화 한다.
+    if (indexInfoIds == null || indexInfoIds.isEmpty()) {
+      indexInfoIds = indexInfoService.getSummaries().stream()
+          .map(IndexInfoSummaryDto::id)
+          .toList();
+    }
+
+    List<IndexInfo> targetIndexInfos = indexInfoIds.stream()
+        .distinct()
+        .map(indexInfoService::getEntity)
+        .toList();
+
+    Map<IndexKey, IndexInfo> targetIndexMap =
+        targetIndexInfos.stream()
+            .collect(Collectors.toMap(
+                indexInfo -> new IndexKey(
+                    indexInfo.getIndexClassification(),
+                    indexInfo.getIndexName()
+                ),
+                indexInfo -> indexInfo
+            ));
+
     List<Item> items = openApiClient.getIndexData(from, to);
 
-    return latestItems.stream()
-        .map(item -> syncOneIndexData(item, LocalDate.now(), r))
-        .toList();
+    for (Item item: items) {
+      IndexKey indexKey = new IndexKey(
+          item.idxCsf(),
+          item.idxNm()
+      );
+
+      IndexInfo targetIndexInfo = targetIndexMap.get(indexKey);
+
+      if (targetIndexInfo == null) {
+        continue;
+      }
+
+      result.add(syncOneIndexData(item, targetIndexInfo, worker));
+    }
+
+    return result;
   }
-**/
 
   /** API 응답 중 가장 최근 기준일의 항목만 반환한다. */
   private List<Item> filterLatestDate(List<Item> items) {
@@ -135,25 +177,23 @@ public class SyncJobService {
 
 
   /**
-   * TODO: IndexData upsert 구현 후 Open API 항목을 저장하고 처리 결과를 기록한다.
-   * 현재는 실제 IndexData 저장과 대상 IndexInfo 연결이 구현되지 않았다.
+   *
    */
   private SyncJobDto syncOneIndexData(
       Item item,
-      LocalDate targetDate,
+      IndexInfo indexInfo,
       String worker
   ) {
+    LocalDate targetDate = LocalDate.parse(item.basDt(), KRX_DATE_FORMAT);
+
     try{
-      IndexDataCreateRequest dataDto  = IndexDataCreateRequest.fromOpenApi(item);
-      /*
-      todo: upsertFromOpenApi가 완성되면 진행.
-      IndexData savedIndexData = indexDataService.upsertFromOpenApi(
-          dataDto.
-      ); */
+      IndexDataCreateRequest dataDto  = IndexDataCreateRequest.fromOpenApi(indexInfo.getId(), item);
+
+      indexDataService.upsertFromOpenApi(dataDto);
 
       SyncJob successJob = SyncJob.create(
           JobType.INDEX_DATA,
-          null, // todo: upsertFromOpenApi가 완성되면 진행.
+          indexInfo,
           targetDate,
           worker,
           ResultType.SUCCESS
@@ -166,7 +206,7 @@ public class SyncJobService {
     } catch (Exception e) {
       SyncJob failedJob = SyncJob.create(
           JobType.INDEX_DATA,
-          null,
+          indexInfo,
           targetDate,
           worker,
           ResultType.FAILED
@@ -177,4 +217,9 @@ public class SyncJobService {
       return SyncJobDto.toSyncJobDto(savedJob);
     }
   }
+
+  private record IndexKey (
+      String indexClassification,
+      String indexName
+  ) {}
 }
