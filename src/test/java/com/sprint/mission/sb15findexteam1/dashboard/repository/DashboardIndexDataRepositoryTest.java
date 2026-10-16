@@ -1,5 +1,6 @@
 package com.sprint.mission.sb15findexteam1.dashboard.repository;
 
+import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sprint.mission.sb15findexteam1.dashboard.repository.DashboardIndexDataRepository;
@@ -36,7 +37,7 @@ class DashboardIndexDataRepositoryTest {
     return IndexData.builder()
         .indexInfoId(indexInfoId)
         .baseDate(date)
-        .sourceType("USER")
+        .sourceType(SourceType.USER)
         .closingPrice(new BigDecimal(closing))
         .build();
   }

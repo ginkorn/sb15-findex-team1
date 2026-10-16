@@ -1,5 +1,6 @@
 package com.sprint.mission.sb15findexteam1.indexdata.service;
 
+import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
 import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataCreateRequest;
 import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataDto;
 import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataSearchCondition;
@@ -49,7 +50,7 @@ public class IndexDataService {
     IndexData indexData = IndexData.builder()
         .indexInfoId(request.indexInfoId())
         .baseDate(request.baseDate())
-        .sourceType("USER")
+        .sourceType(SourceType.USER)
         .marketPrice(request.marketPrice())
         .closingPrice(request.closingPrice())
         .highPrice(request.highPrice())
