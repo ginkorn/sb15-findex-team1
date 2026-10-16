@@ -1,9 +1,12 @@
 package com.sprint.mission.sb15findexteam1.dashboard.service;
 
+import com.sprint.mission.sb15findexteam1.dashboard.calculator.FluctuationCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.calculator.MovingAverageCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.ChartDataPointResponse;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexChartDto;
+import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexPerformanceDto;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.ChartPeriodType;
+import com.sprint.mission.sb15findexteam1.dashboard.enums.PeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.mapper.ChartDataPointMapper;
 import com.sprint.mission.sb15findexteam1.dashboard.repository.DashboardIndexDataRepository;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
@@ -20,6 +23,7 @@ public class DashboardService {
   private final DashboardIndexDataRepository repository;
   private final MovingAverageCalculator movingAverageCalculator;
   private final ChartDataPointMapper chartDataPointMapper;
+  private final FluctuationCalculator fluctuationCalculator;
 
   @Transactional(readOnly = true)     // 조회 전용 트랜잭션
   public IndexChartDto getChart(Long indexInfoId, ChartPeriodType periodType) {
@@ -52,4 +56,26 @@ public class DashboardService {
         ma5,                     // 5일 이동평균
         ma20);                   // 20일 이동평균
   }
+
+  @Transactional(readOnly = true)     // 조회 전용 트랜잭션
+  public IndexPerformanceDto getPerformance(Long indexInfoId, PeriodType periodType) {
+
+    // 1) 이 지수의 가장 최근 데이터를 찾는다 → 현재가의 기준
+    IndexData current = repository.findTopByIndexInfoIdOrderByBaseDateDesc(indexInfoId).orElseThrow();
+
+    // 2) 기간 유형으로 "비교할 날짜"를 계산한다 (DAILY면 하루 전, WEEKLY면 7일 전, MONTHLY면 한 달 전)
+    LocalDate targetDate = periodType.baseDate(current.getBaseDate());
+
+    // 3) 비교 날짜 이전(포함) 중 가장 최근 데이터를 찾는다 → 기준가 (주말, 휴일이면 직전 영업일)
+    IndexData before = repository.findLatestOnOrBefore(indexInfoId, targetDate).orElseThrow();
+
+    // 4) 현재 종가와 기준 종가로 대비, 등락률을 계산해 응답 DTO를 만든다
+    return fluctuationCalculator.calculate(
+        indexInfoId,
+        null,                       // 지수 분류명 (IndexInfo 병합 후 채움)
+        null,                       // 지수명 (IndexInfo 병합 후 채움)
+        current.getClosingPrice(),  // 현재가
+        before.getClosingPrice());  // 기준가
+  }
+
 }

@@ -3,9 +3,12 @@ package com.sprint.mission.sb15findexteam1.dashboard.service;
 import static org.assertj.core.api.Assertions.assertThat;     // AssertJ (Hamcrest 아님)
 import static org.mockito.BDDMockito.given;
 
+import com.sprint.mission.sb15findexteam1.dashboard.calculator.FluctuationCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.calculator.MovingAverageCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexChartDto;
+import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexPerformanceDto;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.ChartPeriodType;
+import com.sprint.mission.sb15findexteam1.dashboard.enums.PeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.mapper.ChartDataPointMapperImpl;
 import com.sprint.mission.sb15findexteam1.dashboard.repository.DashboardIndexDataRepository;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
@@ -33,7 +36,8 @@ class DashboardServiceTest {
     service = new DashboardService(
         repository,                                // 가짜 Repository
         new MovingAverageCalculator(),             // 진짜 계산 클래스
-        new ChartDataPointMapperImpl());           // MapStruct가 만든 진짜 구현체 (Service 필드 순서와 같게)
+        new ChartDataPointMapperImpl(),          // MapStruct가 만든 진짜 구현체 (Service 필드 순서와 같게)
+        new FluctuationCalculator());
   }
 
   // IndexData 엔티티를 간단히 만드는 도우미 (날짜, 종가만 의미 있음)
@@ -106,5 +110,48 @@ class DashboardServiceTest {
 
     // 20일 평균은 데이터가 6개뿐이라 만들 수 없다
     assertThat(result.ma20DataPoints()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("성과: 현재가와 기준가로 대비와 등락률을 계산한다")
+  void getPerformance_daily() {
+    // given: 1번 지수의 가장 최근 데이터는 1/15, 종가 110
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 15), "110")));
+
+    // given: DAILY의 비교 날짜는 하루 전인 1/14, 그날 이전 최근 데이터는 1/14, 종가 100
+    given(repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 14), "100")));
+
+    // when
+    IndexPerformanceDto result = service.getPerformance(1L, PeriodType.DAILY);
+
+    // then: 현재 110, 이전 100 → 대비 +10, 등락률 +10.00%
+    assertThat(result.indexInfoId()).isEqualTo(1L);
+    assertThat(result.currentPrice()).isEqualByComparingTo("110");
+    assertThat(result.beforePrice()).isEqualByComparingTo("100");
+    assertThat(result.versus()).isEqualByComparingTo("10");
+    assertThat(result.fluctuationRate()).isEqualByComparingTo("10.00");
+  }
+
+  @Test
+  @DisplayName("성과: 비교 날짜에 데이터가 없으면 그 이전 가장 가까운 날의 종가를 기준가로 쓴다")
+  void getPerformance_weeklyWithGap() {
+    // given: 가장 최근 데이터는 1/15, 종가 110
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 15), "110")));
+
+    // given: WEEKLY의 비교 날짜는 7일 전인 1/8
+    //        그날은 데이터가 없어서, Repository가 이전 중 가장 가까운 1/7(종가 105)을 돌려준다고 가정
+    given(repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 8)))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 7), "105")));
+
+    // when
+    IndexPerformanceDto result = service.getPerformance(1L, PeriodType.WEEKLY);
+
+    // then: 현재 110, 이전 105 → 대비 +5, 등락률 5 ÷ 105 × 100 = 4.7619... → 4.76
+    assertThat(result.beforePrice()).isEqualByComparingTo("105");
+    assertThat(result.versus()).isEqualByComparingTo("5");
+    assertThat(result.fluctuationRate()).isEqualByComparingTo("4.76");
   }
 }
