@@ -154,4 +154,48 @@ class DashboardIndexDataRepositoryTest {
     // then: 에러가 아니라 빈 목록
     assertThat(result).isEmpty();
   }
+
+
+  // 대시보드 지수순위
+  @Test
+  @DisplayName("[QueryDSL] indexInfoId가 없으면 전체 지수 정보를 id 순서로 조회한다")
+  void findIndexInfos_all() {
+    // given: 즐겨찾기 여부와 상관없이 3개 저장
+    entityManager.persist(indexInfo("KOSPI시리즈", "코스피", true));
+    entityManager.persist(indexInfo("KOSPI시리즈", "코스피 200", false));
+    entityManager.persist(indexInfo("KOSDAQ시리즈", "코스닥", false));
+
+    // when: 지수 ID를 지정하지 않는다
+    List<IndexInfo> result = repository.findIndexInfos(null);
+
+    // then: 전체 3개가 저장한(id) 순서대로 나온다
+    assertThat(result).extracting(IndexInfo::getIndexName)
+        .containsExactly("코스피", "코스피 200", "코스닥");
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] indexInfoId를 주면 그 지수 정보만 조회한다")
+  void findIndexInfos_byId() {
+    // given
+    entityManager.persist(indexInfo("KOSPI시리즈", "코스피", true));
+    IndexInfo target = indexInfo("KOSDAQ시리즈", "코스닥", false);
+    entityManager.persist(target);
+
+    // when: 코스닥의 id만 지정
+    List<IndexInfo> result = repository.findIndexInfos(target.getId());
+
+    // then: 그 지수 1개만 나온다
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).getIndexName()).isEqualTo("코스닥");
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 없는 지수 ID를 주면 빈 목록을 돌려준다")
+  void findIndexInfos_notFound() {
+    // when: 존재하지 않는 id
+    List<IndexInfo> result = repository.findIndexInfos(999999L);
+
+    // then: 에러가 아니라 빈 목록
+    assertThat(result).isEmpty();
+  }
 }
