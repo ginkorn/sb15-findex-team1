@@ -50,6 +50,16 @@ class DashboardServiceTest {
         .build();
   }
 
+  // 지수 번호까지 지정해서 IndexData를 만드는 도우미 (여러 지수를 다루는 테스트용)
+  private IndexData data(Long indexInfoId, LocalDate date, String closing) {
+    return IndexData.builder()
+        .indexInfoId(indexInfoId)       // 몇 번 지수의 데이터인지
+        .baseDate(date)
+        .sourceType("USER")
+        .closingPrice(new BigDecimal(closing))
+        .build();
+  }
+
   @Test
   @DisplayName("차트는 기간 내 종가를 날짜 오름차순 dataPoints로 돌려준다")
   void getChart_dataPoints() {
@@ -124,7 +134,7 @@ class DashboardServiceTest {
         .willReturn(Optional.of(data(LocalDate.of(2025, 1, 14), "100")));
 
     // when
-    IndexPerformanceDto result = service.getPerformance(1L, PeriodType.DAILY);
+    IndexPerformanceDto result = service.getPerformances(List.of(1L), PeriodType.DAILY).get(0);
 
     // then: 현재 110, 이전 100 → 대비 +10, 등락률 +10.00%
     assertThat(result.indexInfoId()).isEqualTo(1L);
@@ -147,11 +157,68 @@ class DashboardServiceTest {
         .willReturn(Optional.of(data(LocalDate.of(2025, 1, 7), "105")));
 
     // when
-    IndexPerformanceDto result = service.getPerformance(1L, PeriodType.WEEKLY);
+    IndexPerformanceDto result = service.getPerformances(List.of(1L), PeriodType.WEEKLY).get(0);
 
     // then: 현재 110, 이전 105 → 대비 +5, 등락률 5 ÷ 105 × 100 = 4.7619... → 4.76
     assertThat(result.beforePrice()).isEqualByComparingTo("105");
     assertThat(result.versus()).isEqualByComparingTo("5");
     assertThat(result.fluctuationRate()).isEqualByComparingTo("4.76");
+  }
+
+  @Test
+  @DisplayName("여러 지수의 성과를 입력한 순서대로 계산해서 돌려준다")
+  void getPerformances_multiple() {
+    // given: 1번 지수 - 현재(1/15) 110, 하루 전(1/14) 100 (오른 경우)
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
+        .willReturn(Optional.of(data(1L, LocalDate.of(2025, 1, 15), "110")));
+    given(repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(1L, LocalDate.of(2025, 1, 14), "100")));
+
+    // given: 2번 지수 - 현재(1/15) 200, 하루 전(1/14) 250 (내린 경우)
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(2L))
+        .willReturn(Optional.of(data(2L, LocalDate.of(2025, 1, 15), "200")));
+    given(repository.findLatestOnOrBefore(2L, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(2L, LocalDate.of(2025, 1, 14), "250")));
+
+    // when: 1번, 2번 지수의 일간 성과를 요청
+    List<IndexPerformanceDto> result = service.getPerformances(List.of(1L, 2L), PeriodType.DAILY);
+
+    // then: 2개가 입력 순서대로 나온다
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).indexInfoId()).isEqualTo(1L);
+    assertThat(result.get(0).fluctuationRate()).isEqualByComparingTo("10.00");    // 100 → 110
+    assertThat(result.get(1).indexInfoId()).isEqualTo(2L);
+    assertThat(result.get(1).fluctuationRate()).isEqualByComparingTo("-20.00");   // 250 → 200
+  }
+
+  @Test
+  @DisplayName("지수 ID 목록이 비어 있으면 빈 목록을 돌려준다")
+  void getPerformances_empty() {
+    // when: 즐겨찾기한 지수가 없는 경우
+    List<IndexPerformanceDto> result = service.getPerformances(List.of(), PeriodType.DAILY);
+
+    // then: 에러가 아니라 빈 목록 (프런트가 "즐겨찾기에 등록해주세요"를 보여 줌)
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("데이터가 없는 지수는 건너뛰고 나머지만 돌려준다")
+  void getPerformances_skipNoData() {
+    // given: 1번 지수는 정상 데이터가 있다
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
+        .willReturn(Optional.of(data(1L, LocalDate.of(2025, 1, 15), "110")));
+    given(repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(1L, LocalDate.of(2025, 1, 14), "100")));
+
+    // given: 2번 지수는 데이터가 아예 없다
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(2L))
+        .willReturn(Optional.empty());
+
+    // when
+    List<IndexPerformanceDto> result = service.getPerformances(List.of(1L, 2L), PeriodType.DAILY);
+
+    // then: 2번은 빠지고 1번만 남는다
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).indexInfoId()).isEqualTo(1L);
   }
 }
