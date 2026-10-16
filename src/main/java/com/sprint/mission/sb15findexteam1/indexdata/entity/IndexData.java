@@ -1,6 +1,10 @@
 package com.sprint.mission.sb15findexteam1.indexdata.entity;
 
 import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
+import com.sprint.mission.sb15findexteam1.indexinfo.entity.IndexInfo;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -21,24 +25,26 @@ import lombok.NoArgsConstructor;
 @Getter
 @Entity
 @Table(
-    name = "index_data",
-    uniqueConstraints = @UniqueConstraint(
-        name = "uk_index_data_info_date",
-        columnNames = {"index_info_id", "base_date"}
+    name = "index_data", uniqueConstraints = @UniqueConstraint(
+        name = "uk_index_data_info_date", columnNames = {"index_info_id", "base_date"}
     )
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class IndexData {
 
-  // 지수 데이터의 고유 ID (DB에서 자동 생성)
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  // TODO(A): IndexInfo Entity 완성 후 연관관계로 변경
   // 어떤 지수에 속한 데이터인지 구분하는 ID
   @Column(name = "index_info_id", nullable = false)
   private Long indexInfoId;
+
+  // IndexInfo와 다대일(N:1) 연관관계 설정
+  // 여러 IndexData가 하나의 IndexInfo에 속함
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "index_info_id", insertable = false, updatable = false, nullable = false)
+  private IndexInfo indexInfo;
 
   @Column(name = "base_date", nullable = false)
   private LocalDate baseDate;
