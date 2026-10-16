@@ -1,14 +1,19 @@
 package com.sprint.mission.sb15findexteam1.dashboard.service;
 
+import com.sprint.mission.sb15findexteam1.dashboard.calculator.FluctuationCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.calculator.MovingAverageCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.ChartDataPointResponse;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexChartDto;
+import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexPerformanceDto;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.ChartPeriodType;
+import com.sprint.mission.sb15findexteam1.dashboard.enums.PeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.mapper.ChartDataPointMapper;
 import com.sprint.mission.sb15findexteam1.dashboard.repository.DashboardIndexDataRepository;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
+import com.sprint.mission.sb15findexteam1.indexinfo.entity.IndexInfo;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +25,7 @@ public class DashboardService {
   private final DashboardIndexDataRepository repository;
   private final MovingAverageCalculator movingAverageCalculator;
   private final ChartDataPointMapper chartDataPointMapper;
+  private final FluctuationCalculator fluctuationCalculator;
 
   @Transactional(readOnly = true)     // 조회 전용 트랜잭션
   public IndexChartDto getChart(Long indexInfoId, ChartPeriodType periodType) {
@@ -52,4 +58,45 @@ public class DashboardService {
         ma5,                     // 5일 이동평균
         ma20);                   // 20일 이동평균
   }
+
+  // 지수 정보 목록의 성과를 입력 순서대로 계산한다. 데이터가 없는 지수는 건너뛴다
+  @Transactional(readOnly = true)
+  public List<IndexPerformanceDto> getPerformances(List<IndexInfo> indexInfos, PeriodType periodType) {
+    return indexInfos.stream()                              // 지수 정보를 하나씩 꺼내서
+        .map(info -> findPerformance(info, periodType))     // 각각 성과를 계산 (없으면 Optional.empty)
+        .flatMap(Optional::stream)                          // 빈 것은 버리고, 값이 있는 것만 남김
+        .toList();                                          // 목록으로 반환 (입력 순서 유지)
+  }
+
+  // 지수 1개의 성과를 계산한다. 데이터가 부족하면 예외 대신 Optional.empty()를 돌려준다
+  private Optional<IndexPerformanceDto> findPerformance(IndexInfo info, PeriodType periodType) {
+    Long indexInfoId = info.getId();      // 지수 번호는 IndexInfo에서 꺼낸다
+    // 1) 가장 최근 데이터를 찾는다. 없으면 계산할 수 없으니 빈 값
+    Optional<IndexData> current = repository.findTopByIndexInfoIdOrderByBaseDateDesc(indexInfoId);
+    if (current.isEmpty()) {
+      return Optional.empty();
+    }
+    // 2) 기간 유형으로 비교할 날짜를 계산한다
+    LocalDate targetDate = periodType.baseDate(current.get().getBaseDate());
+    // 3) 비교 날짜 이전(포함) 중 가장 최근 데이터를 찾는다. 없으면 빈 값
+    Optional<IndexData> before = repository.findLatestOnOrBefore(indexInfoId, targetDate);
+    if (before.isEmpty()) {
+      return Optional.empty();
+    }
+    // 4) 두 종가로 대비, 등락률을 계산하고 지수 분류명, 지수명을 채워서 돌려준다
+    return Optional.of(fluctuationCalculator.calculate(
+        indexInfoId,
+        info.getIndexClassification(),         // 이제 IndexInfo에서 채운다 (null 아님)
+        info.getIndexName(),
+        current.get().getClosingPrice(),       // 현재가
+        before.get().getClosingPrice()));      // 기준가
+  }
+
+  // 즐겨찾기 지수들의 성과를 지수명과 함께 돌려준다
+  @Transactional(readOnly = true)
+  public List<IndexPerformanceDto> getFavoritePerformances(PeriodType periodType) {
+    List<IndexInfo> favorites = repository.findFavoriteIndexInfos();   // 즐겨찾기 지수 조회 (없으면 빈 목록)
+    return getPerformances(favorites, periodType);                     // 아래 메서드로 성과 계산
+  }
+
 }

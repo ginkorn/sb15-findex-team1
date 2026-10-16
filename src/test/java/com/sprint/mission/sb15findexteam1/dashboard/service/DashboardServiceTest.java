@@ -1,14 +1,19 @@
 package com.sprint.mission.sb15findexteam1.dashboard.service;
 
+import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
 import static org.assertj.core.api.Assertions.assertThat;     // AssertJ (Hamcrest 아님)
 import static org.mockito.BDDMockito.given;
 
+import com.sprint.mission.sb15findexteam1.dashboard.calculator.FluctuationCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.calculator.MovingAverageCalculator;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexChartDto;
+import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexPerformanceDto;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.ChartPeriodType;
+import com.sprint.mission.sb15findexteam1.dashboard.enums.PeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.mapper.ChartDataPointMapperImpl;
 import com.sprint.mission.sb15findexteam1.dashboard.repository.DashboardIndexDataRepository;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
+import com.sprint.mission.sb15findexteam1.indexinfo.entity.IndexInfo;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -19,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)       // Mockito를 이 테스트에서 쓰겠다는 설정
 class DashboardServiceTest {
@@ -33,7 +39,8 @@ class DashboardServiceTest {
     service = new DashboardService(
         repository,                                // 가짜 Repository
         new MovingAverageCalculator(),             // 진짜 계산 클래스
-        new ChartDataPointMapperImpl());           // MapStruct가 만든 진짜 구현체 (Service 필드 순서와 같게)
+        new ChartDataPointMapperImpl(),          // MapStruct가 만든 진짜 구현체 (Service 필드 순서와 같게)
+        new FluctuationCalculator());
   }
 
   // IndexData 엔티티를 간단히 만드는 도우미 (날짜, 종가만 의미 있음)
@@ -41,7 +48,17 @@ class DashboardServiceTest {
     return IndexData.builder()
         .indexInfoId(1L)
         .baseDate(date)
-        .sourceType("USER")
+        .sourceType(SourceType.USER)
+        .closingPrice(new BigDecimal(closing))
+        .build();
+  }
+
+  // 지수 번호까지 지정해서 IndexData를 만드는 도우미 (여러 지수를 다루는 테스트용)
+  private IndexData data(Long indexInfoId, LocalDate date, String closing) {
+    return IndexData.builder()
+        .indexInfoId(indexInfoId)       // 몇 번 지수의 데이터인지
+        .baseDate(date)
+        .sourceType(SourceType.USER)
         .closingPrice(new BigDecimal(closing))
         .build();
   }
@@ -106,5 +123,157 @@ class DashboardServiceTest {
 
     // 20일 평균은 데이터가 6개뿐이라 만들 수 없다
     assertThat(result.ma20DataPoints()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("성과: 현재가와 기준가로 대비와 등락률을 계산한다")
+  void getPerformance_daily() {
+    // given: 1번 지수의 가장 최근 데이터는 1/15, 종가 110
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 15), "110")));
+
+    // given: DAILY의 비교 날짜는 하루 전인 1/14, 그날 이전 최근 데이터는 1/14, 종가 100
+    given(repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 14), "100")));
+
+    // when: 1번 지수 하나로 호출하고, 첫 번째 결과를 꺼낸다
+    IndexPerformanceDto result = service.getPerformances(
+        List.of(indexInfo(1L, "KOSPI시리즈", "코스피")),
+        PeriodType.DAILY).get(0);
+
+    // then: 현재 110, 이전 100 → 대비 +10, 등락률 +10.00%
+    assertThat(result.indexInfoId()).isEqualTo(1L);
+    assertThat(result.currentPrice()).isEqualByComparingTo("110");
+    assertThat(result.beforePrice()).isEqualByComparingTo("100");
+    assertThat(result.versus()).isEqualByComparingTo("10");
+    assertThat(result.fluctuationRate()).isEqualByComparingTo("10.00");
+  }
+
+  @Test
+  @DisplayName("성과: 비교 날짜에 데이터가 없으면 그 이전 가장 가까운 날의 종가를 기준가로 쓴다")
+  void getPerformance_weeklyWithGap() {
+    // given: 가장 최근 데이터는 1/15, 종가 110
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 15), "110")));
+
+    // given: WEEKLY의 비교 날짜는 7일 전인 1/8
+    //        그날은 데이터가 없어서, Repository가 이전 중 가장 가까운 1/7(종가 105)을 돌려준다고 가정
+    given(repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 8)))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 7), "105")));
+
+    // when: 1번 지수 하나를 WEEKLY로 호출 (비교 날짜 = 7일 전 = 1/8)
+    IndexPerformanceDto result = service.getPerformances(
+        List.of(indexInfo(1L, "KOSPI시리즈", "코스피")),
+        PeriodType.WEEKLY).get(0);
+
+    // then: 현재 110, 이전 105 → 대비 +5, 등락률 5 ÷ 105 × 100 = 4.7619... → 4.76
+    assertThat(result.beforePrice()).isEqualByComparingTo("105");
+    assertThat(result.versus()).isEqualByComparingTo("5");
+    assertThat(result.fluctuationRate()).isEqualByComparingTo("4.76");
+  }
+
+  @Test
+  @DisplayName("여러 지수의 성과를 입력한 순서대로 계산해서 돌려준다")
+  void getPerformances_multiple() {
+    // given: 1번 지수 - 현재(1/15) 110, 하루 전(1/14) 100 (오른 경우)
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
+        .willReturn(Optional.of(data(1L, LocalDate.of(2025, 1, 15), "110")));
+    given(repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(1L, LocalDate.of(2025, 1, 14), "100")));
+
+    // given: 2번 지수 - 현재(1/15) 200, 하루 전(1/14) 250 (내린 경우)
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(2L))
+        .willReturn(Optional.of(data(2L, LocalDate.of(2025, 1, 15), "200")));
+    given(repository.findLatestOnOrBefore(2L, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(2L, LocalDate.of(2025, 1, 14), "250")));
+
+    // when: 1번, 2번 지수의 일간 성과를 요청
+    List<IndexPerformanceDto> result = service.getPerformances(
+        List.of(indexInfo(1L, "KOSPI시리즈", "코스피"), indexInfo(2L, "KOSDAQ시리즈", "코스닥")),
+        PeriodType.DAILY);
+
+    // then: 2개가 입력 순서대로 나온다
+    assertThat(result).hasSize(2);
+    assertThat(result.get(0).indexInfoId()).isEqualTo(1L);
+    assertThat(result.get(0).fluctuationRate()).isEqualByComparingTo("10.00");    // 100 → 110
+    assertThat(result.get(1).indexInfoId()).isEqualTo(2L);
+    assertThat(result.get(1).fluctuationRate()).isEqualByComparingTo("-20.00");   // 250 → 200
+  }
+
+  @Test
+  @DisplayName("지수 ID 목록이 비어 있으면 빈 목록을 돌려준다")
+  void getPerformances_empty() {
+    // when: 즐겨찾기한 지수가 없는 경우
+    List<IndexPerformanceDto> result = service.getPerformances(List.of(), PeriodType.DAILY);
+
+    // then: 에러가 아니라 빈 목록 (프런트가 "즐겨찾기에 등록해주세요"를 보여 줌)
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("데이터가 없는 지수는 건너뛰고 나머지만 돌려준다")
+  void getPerformances_skipNoData() {
+    // given: 1번 지수는 정상 데이터가 있다
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
+        .willReturn(Optional.of(data(1L, LocalDate.of(2025, 1, 15), "110")));
+    given(repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(1L, LocalDate.of(2025, 1, 14), "100")));
+
+    // given: 2번 지수는 데이터가 아예 없다
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(2L))
+        .willReturn(Optional.empty());
+
+    // when
+    List<IndexPerformanceDto> result = service.getPerformances(
+        List.of(indexInfo(1L, "KOSPI시리즈", "코스피"), indexInfo(2L, "KOSDAQ시리즈", "코스닥")),
+        PeriodType.DAILY);
+
+    // then: 2번은 빠지고 1번만 남는다
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).indexInfoId()).isEqualTo(1L);
+  }
+
+  // 테스트용 IndexInfo를 만드는 도우미 (id, 분류명, 지수명만 의미 있음)
+  private IndexInfo indexInfo(Long id, String classification, String name) {
+    IndexInfo info = IndexInfo.create(
+        classification, name,
+        100, LocalDate.of(2000, 1, 1), new BigDecimal("100"),   // 의미 없는 값들
+        SourceType.USER, true);
+    ReflectionTestUtils.setField(info, "id", id);               // DB가 없으니 id를 직접 넣는다
+    return info;
+  }
+
+  @Test
+  @DisplayName("관심 지수 성과: 즐겨찾기 지수의 성과를 지수명과 함께 돌려준다")
+  void getFavoritePerformances() {
+    // given: 즐겨찾기 지수는 1번(코스피) 하나
+    given(repository.findFavoriteIndexInfos())
+        .willReturn(List.of(indexInfo(1L, "KOSPI시리즈", "코스피")));
+
+    // given: 1번 지수의 데이터 (현재 1/15 종가 110, 하루 전 1/14 종가 100)
+    given(repository.findTopByIndexInfoIdOrderByBaseDateDesc(1L))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 15), "110")));
+    given(repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 14)))
+        .willReturn(Optional.of(data(LocalDate.of(2025, 1, 14), "100")));
+
+    // when
+    List<IndexPerformanceDto> result = service.getFavoritePerformances(PeriodType.DAILY);
+
+    // then: 이름과 계산 결과가 함께 나온다
+    assertThat(result).hasSize(1);
+    assertThat(result.get(0).indexInfoId()).isEqualTo(1L);
+    assertThat(result.get(0).indexClassification()).isEqualTo("KOSPI시리즈");
+    assertThat(result.get(0).indexName()).isEqualTo("코스피");
+    assertThat(result.get(0).fluctuationRate()).isEqualByComparingTo("10.00");
+  }
+
+  @Test
+  @DisplayName("관심 지수 성과: 즐겨찾기한 지수가 없으면 빈 목록을 돌려준다")
+  void getFavoritePerformances_empty() {
+    // given: 즐겨찾기 지수가 없다
+    given(repository.findFavoriteIndexInfos()).willReturn(List.of());
+
+    // when & then: 에러가 아니라 빈 목록
+    assertThat(service.getFavoritePerformances(PeriodType.DAILY)).isEmpty();
   }
 }

@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface DashboardIndexDataRepository extends JpaRepository<IndexData,Long> {
+public interface DashboardIndexDataRepository extends JpaRepository<IndexData,Long>, DashboardQueryRepository {
 
   // 기간 내 데이터를 날짜 오름차순으로 조회
   List<IndexData> findByIndexInfoIdAndBaseDateBetweenOrderByBaseDateAsc(Long indexInfoId, LocalDate from, LocalDate to);
