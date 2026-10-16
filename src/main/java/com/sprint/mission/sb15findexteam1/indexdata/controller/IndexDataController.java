@@ -202,7 +202,4 @@ public class IndexDataController {
         )
         .body(csv);
   }
-
-  // TODO(A): IndexInfo 연관관계 및 공통 예외 처리 연결
-  // TODO(B): @Valid를 이용한 요청 데이터 유효성 검증
 }

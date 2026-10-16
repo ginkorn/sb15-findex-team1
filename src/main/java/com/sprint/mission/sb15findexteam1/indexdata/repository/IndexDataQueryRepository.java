@@ -22,7 +22,4 @@ public interface IndexDataQueryRepository {
   long countByCondition(
       IndexDataSearchCondition condition
   );
-
-  // TODO(A): 공통 커서 페이지 응답 DTO 확정 후 Service에서 연결
-  // TODO(A): nextCursor, nextIdAfter, hasNext 응답 조립 방식 협의
 }
