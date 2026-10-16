@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sprint.mission.sb15findexteam1.dashboard.repository.DashboardIndexDataRepository;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
+import com.sprint.mission.sb15findexteam1.indexinfo.entity.IndexInfo;
+import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -22,6 +24,21 @@ class DashboardIndexDataRepositoryTest {
 
   @Autowired
   private DashboardIndexDataRepository repository;   // 아직 없어서 빨간 줄이 정상
+
+  @Autowired
+  private EntityManager entityManager;   // 테스트에서 IndexInfo를 DB에 직접 저장하기 위한 도구
+
+  // 테스트용 IndexInfo를 만드는 도우미 (분류명, 지수명, 즐겨찾기 여부만 의미 있음)
+  // IndexInfo는 new로 만들 수 없고 create()로만 만든다. 나머지 값은 아무 값이나 넣는다.
+  private IndexInfo indexInfo(String classification, String name, boolean favorite) {
+    return IndexInfo.create(
+        classification, name,
+        100,                                  // 채용 종목 수 (의미 없음)
+        LocalDate.of(2000, 1, 1),             // 기준 시점 (의미 없음)
+        new BigDecimal("100"),                // 기준 지수 (의미 없음)
+        SourceType.USER,
+        favorite);                            // 즐겨찾기 여부 ← 이번 테스트의 핵심
+  }
 
   // 지수 1번의 데이터 3개(1/14, 1/15, 2/14)와, 다른 지수(2번)의 데이터 1개를 저장해 둔다
   @BeforeEach
@@ -105,6 +122,36 @@ class DashboardIndexDataRepositoryTest {
     Optional<IndexData> result = repository.findLatestOnOrBefore(1L, LocalDate.of(2025, 1, 1));
 
     // then: 없으니 비어 있어야 한다
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 즐겨찾기인 지수 정보만 id 순서로 조회한다")
+  void findFavoriteIndexInfos() {
+    // given: 즐겨찾기 2개, 아닌 것 1개를 저장
+    entityManager.persist(indexInfo("KOSPI시리즈", "코스피", true));
+    entityManager.persist(indexInfo("KOSPI시리즈", "코스피 200", false));   // 즐겨찾기 아님 (조회되면 안 됨)
+    entityManager.persist(indexInfo("KOSDAQ시리즈", "코스닥", true));
+
+    // when
+    List<IndexInfo> result = repository.findFavoriteIndexInfos();
+
+    // then: 즐겨찾기인 2개만, 저장한(id) 순서대로
+    assertThat(result).hasSize(2);
+    assertThat(result).extracting(IndexInfo::getIndexName)
+        .containsExactly("코스피", "코스닥");
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 즐겨찾기인 지수가 없으면 빈 목록을 돌려준다")
+  void findFavoriteIndexInfos_empty() {
+    // given: 즐겨찾기가 아닌 지수만 저장
+    entityManager.persist(indexInfo("KOSPI시리즈", "코스피", false));
+
+    // when
+    List<IndexInfo> result = repository.findFavoriteIndexInfos();
+
+    // then: 에러가 아니라 빈 목록
     assertThat(result).isEmpty();
   }
 }
