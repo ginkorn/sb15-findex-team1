@@ -7,7 +7,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.sprint.mission.sb15findexteam1.dashboard.dto.ChartDataPointResponse;
 import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexChartDto;
+import com.sprint.mission.sb15findexteam1.dashboard.dto.IndexPerformanceDto;
 import com.sprint.mission.sb15findexteam1.dashboard.enums.ChartPeriodType;
+import com.sprint.mission.sb15findexteam1.dashboard.enums.PeriodType;
 import com.sprint.mission.sb15findexteam1.dashboard.service.DashboardService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,5 +47,37 @@ class DashboardControllerTest {
         .andExpect(jsonPath("$.indexInfoId").value(1))                 // 응답 JSON 필드 검증
         .andExpect(jsonPath("$.periodType").value("MONTHLY"))
         .andExpect(jsonPath("$.dataPoints[0].value").value(100));
+  }
+
+  @Test
+  @DisplayName("관심 지수 성과: 즐겨찾기 지수의 성과를 JSON 목록으로 응답한다")
+  void getFavoritePerformances() throws Exception {
+    // given: 서비스가 지수 1개의 성과를 돌려준다고 가정
+    IndexPerformanceDto dto = new IndexPerformanceDto(
+        1L, "KOSPI시리즈", "코스피",
+        new BigDecimal("10"), new BigDecimal("10.00"),
+        new BigDecimal("110"), new BigDecimal("100"));
+    given(dashboardService.getFavoritePerformances(PeriodType.DAILY)).willReturn(List.of(dto));
+
+    // when & then: GET /api/index-data/performance/favorite?periodType=DAILY
+    mockMvc.perform(get("/api/index-data/performance/favorite").param("periodType", "DAILY"))
+        .andExpect(status().isOk())                                   // 200
+        .andExpect(jsonPath("$[0].indexInfoId").value(1))              // 목록의 첫 번째 항목
+        .andExpect(jsonPath("$[0].indexName").value("코스피"))
+        .andExpect(jsonPath("$[0].fluctuationRate").value(10.00))
+        .andExpect(jsonPath("$[0].currentPrice").value(110))
+        .andExpect(jsonPath("$[0].beforePrice").value(100));
+  }
+
+  @Test
+  @DisplayName("관심 지수 성과: periodType을 생략하면 DAILY로 조회하고, 즐겨찾기가 없으면 빈 배열을 응답한다")
+  void getFavoritePerformances_defaultAndEmpty() throws Exception {
+    // given: 즐겨찾기가 없어서 서비스가 빈 목록을 돌려준다
+    given(dashboardService.getFavoritePerformances(PeriodType.DAILY)).willReturn(List.of());
+
+    // when & then: periodType 파라미터 없이 호출 → DAILY가 기본값이어야 한다
+    mockMvc.perform(get("/api/index-data/performance/favorite"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isEmpty());                          // 빈 배열 []
   }
 }
