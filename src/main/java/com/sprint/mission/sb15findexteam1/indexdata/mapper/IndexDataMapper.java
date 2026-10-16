@@ -5,16 +5,15 @@ import com.sprint.mission.sb15findexteam1.indexdata.dto.IndexDataDto;
 import com.sprint.mission.sb15findexteam1.indexdata.entity.IndexData;
 import java.util.List;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface IndexDataMapper {
 
-  // Entity의 필드 값을 프론트엔드 응답 DTO에 전달
+  // Entity의 indexInfoId를 DTO의 indexInfoId로 변환
+  @Mapping(target = "indexInfoId", source = "indexInfoId")
   IndexDataDto toDto(IndexData indexData);
 
-  // 지수 데이터 목록 조회 API에서 사용
+  // Entity 목록을 DTO 목록으로 변환
   List<IndexDataDto> toDtoList(List<IndexData> indexDataList);
-
-  // TODO(A): IndexInfo 연관관계 변경 시
-  // indexInfoId 매핑 방식 재확인
 }
