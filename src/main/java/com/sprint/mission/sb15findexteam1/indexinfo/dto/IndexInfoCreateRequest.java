@@ -1,11 +1,14 @@
 package com.sprint.mission.sb15findexteam1.indexinfo.dto;
 
+import com.sprint.mission.sb15findexteam1.common.enums.SourceType;
+import com.sprint.mission.sb15findexteam1.openapi.dto.OpenApiResponseDto.Item;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 /**
  * 지수 정보 등록 요청 = POST /api/index-infos 의 요청 본문(JSON).
@@ -37,4 +40,19 @@ public record IndexInfoCreateRequest(
     @NotNull @Positive BigDecimal baseIndex,            // 기준 지수 (필수, 0보다 큼)
     Boolean favorite                                    // 즐겨찾기 (선택, 보내지 않으면 false로 저장)
 ) {
+
+  private static final DateTimeFormatter KRX_DATE_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMMdd");
+
+  /** Open API 응답을 지수 정보 DTO로 변환한다. */
+  public static IndexInfoCreateRequest fromOpenApi(Item item) {
+    return new IndexInfoCreateRequest(
+        item.idxCsf(),
+        item.idxNm(),
+        Integer.valueOf(item.epyItmsCnt()),
+        LocalDate.parse(item.basPntm(), KRX_DATE_FORMAT),
+        new BigDecimal(item.basIdx()),
+        false
+    );
+  }
 }

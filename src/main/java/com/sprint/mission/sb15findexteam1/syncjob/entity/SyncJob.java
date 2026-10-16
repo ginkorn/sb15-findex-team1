@@ -104,13 +104,13 @@ public class SyncJob {
    * 연동 실패 (Open API 오류, 데이터 없음 등) - FAILED
    * 연동 성공 - SUCCESS
    */
-  public static SyncJob createSyncJob(
+  public static SyncJob create(
       JobType jobType,
       IndexInfo indexInfo,
       LocalDate targetDate,
       String worker,
-      ResultType result) {
-
+      ResultType result
+  ) {
     SyncJob syncJob = new SyncJob();
     syncJob.jobType = jobType;
     syncJob.indexInfo = indexInfo;
@@ -118,7 +118,6 @@ public class SyncJob {
     syncJob.worker = worker;
     syncJob.jobTime = LocalDateTime.now();
     syncJob.result = result;
-
     return syncJob;
   }
 }

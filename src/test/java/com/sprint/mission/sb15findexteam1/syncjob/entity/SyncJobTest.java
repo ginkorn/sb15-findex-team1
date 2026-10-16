@@ -16,7 +16,7 @@ class SyncJobTest {
 
   @Test
   public void 엔티티_저장_및_꺼내오기_테스트() {
-    SyncJob syncJob = SyncJob.createSyncJob(
+    SyncJob syncJob = SyncJob.create(
         JobType.INDEX_DATA,
         null,
         LocalDate.now(),
