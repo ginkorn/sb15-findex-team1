@@ -1,10 +1,12 @@
 package com.sprint.mission.sb15findexteam1.openapi.client;
 
 import java.time.LocalDate;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+@Disabled("실제 API 키와 네트워크가 필요한 수동 연동 확인용")
 @SpringBootTest
 class OpenApiClientTest {
 

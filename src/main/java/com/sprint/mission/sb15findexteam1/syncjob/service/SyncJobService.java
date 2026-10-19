@@ -21,10 +21,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+/**
+ * Open API 지수 정보를 IndexInfo·IndexData로 연동하고 항목별 SyncJob 이력을 남긴다.
+ *
+ * <p>한 항목 처리에 실패해도 전체 연동은 계속하며,
+ * 실패한 항목만 FAILED 이력으로 기록한다.
+ */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SyncJobService {
   private static final DateTimeFormatter KRX_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -36,6 +44,7 @@ public class SyncJobService {
   /**
    * 최근 7일 데이터를 조회해 최신 기준일의 지수 정보를 upsert하고,
    * 항목별 처리 결과를 SyncJob 이력으로 저장해 반환한다.
+   * 주말·휴일에는 당일 데이터가 없을 수 있어 최근 7일 중 최신 기준일을 사용한다.
    */
   public List<SyncJobDto> syncIndexInfo(String worker) {
     LocalDate today = LocalDate.now();
@@ -47,6 +56,12 @@ public class SyncJobService {
         .toList();
   }
 
+  /**
+   * 요청한 기간의 지수 데이터를 연동한다.
+   *
+   * <p>indexInfoIds가 null이거나 비어 있으면 등록된 전체 지수가 대상이다.
+   * Open API 응답에는 내부 DB id가 없으므로 지수 분류명과 지수명으로 대상을 연결한다.
+   */
   public List<SyncJobDto> syncIndexData(IndexDataSyncRequest request, String worker) {
     LocalDate from = request.baseDateFrom();
     LocalDate to = request.baseDateTo();
@@ -57,9 +72,7 @@ public class SyncJobService {
     List<SyncJobDto> result = new ArrayList<>();
 
 
-    // indexInfoIds가 비어있을 수도 있는데, 이러면 전체 지수를 조회한다는 뜻이므로
-    // Summary 함수를 통해 전체 IndexInfo Id값을 불러와서 IndexInfoIds 변수를 채운다.
-    // 그 뒤에 targetIndexInfos 에서 idxClassification과 idxNm으로 구체화 한다.
+    // 대상 ID를 생략하면 DB에 등록된 전체 지수를 연동한다.
     if (indexInfoIds == null || indexInfoIds.isEmpty()) {
       indexInfoIds = indexInfoService.getSummaries().stream()
           .map(IndexInfoSummaryDto::id)
@@ -71,6 +84,7 @@ public class SyncJobService {
         .map(indexInfoService::getEntity)
         .toList();
 
+    // Open API에는 내부 id가 없으므로 (지수 분류명, 지수명)을 연결 키로 사용한다.
     Map<IndexKey, IndexInfo> targetIndexMap =
         targetIndexInfos.stream()
             .collect(Collectors.toMap(
@@ -91,6 +105,7 @@ public class SyncJobService {
 
       IndexInfo targetIndexInfo = targetIndexMap.get(indexKey);
 
+      // API는 기간 내 전체 지수를 반환하므로 요청 대상이 아닌 항목은 건너뛴다.
       if (targetIndexInfo == null) {
         continue;
       }
@@ -101,7 +116,7 @@ public class SyncJobService {
     return result;
   }
 
-  /** API 응답 중 가장 최근 기준일의 항목만 반환한다. */
+  /** 주말·휴일을 포함한 조회 범위에서 API가 제공한 가장 최근 영업일 항목만 반환한다. */
   private List<Item> filterLatestDate(List<Item> items) {
     if (items.isEmpty()) {
       throw new IllegalStateException("요청에는 성공했지만 지수 정보 데이터가 없습니다.");
@@ -161,6 +176,9 @@ public class SyncJobService {
       return SyncJobDto.toSyncJobDto(savedJob);
 
     } catch (Exception e) {
+      log.warn(
+          "지수 정보 연동 실패: classification={}, name={}, reason={}",
+          item.idxCsf(), item.idxNm(), e.getMessage(), e);
       SyncJob failedJob = SyncJob.create(
           JobType.INDEX_INFO,
           null,
@@ -177,7 +195,8 @@ public class SyncJobService {
 
 
   /**
-   *
+   * Open API 항목 하나를 IndexData로 upsert하고 SyncJob 이력을 기록한다.
+   * 처리 실패는 FAILED 이력으로 변환해 다음 항목의 연동을 계속한다.
    */
   private SyncJobDto syncOneIndexData(
       Item item,
@@ -204,6 +223,9 @@ public class SyncJobService {
       return SyncJobDto.toSyncJobDto(savedJob);
 
     } catch (Exception e) {
+      log.warn(
+          "지수 데이터 연동 실패: indexInfoId={}, baseDate={}, reason={}",
+          indexInfo.getId(), item.basDt(), e.getMessage(), e);
       SyncJob failedJob = SyncJob.create(
           JobType.INDEX_DATA,
           indexInfo,
@@ -218,6 +240,7 @@ public class SyncJobService {
     }
   }
 
+  /** 내부 id가 없는 Open API 항목을 IndexInfo와 연결하기 위한 키. */
   private record IndexKey (
       String indexClassification,
       String indexName
