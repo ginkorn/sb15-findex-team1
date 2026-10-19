@@ -14,3 +14,8 @@ spring:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+findex:
+  auto-sync:
+    cron: ${AUTO_SYNC_CRON:0 0 14 * * *}
+    zone: ${AUTO_SYNC_ZONE:Asia/Seoul}

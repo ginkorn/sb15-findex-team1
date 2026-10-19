@@ -15,14 +15,14 @@ public class AutoSyncScheduler {
   private final AutoSyncConfigService autoSyncConfigService;
   private final SyncJobService syncJobService;
 
-  @Scheduled(cron = "0 0 14 * * MON-FRI", zone = "Asia/Seoul")
+  @Scheduled(cron = "${findex.auto-sync.cron}", zone = "${findex.auto-sync.zone}")
   public void syncEnabledIndexes() {
     List<Long> indexInfoIds = autoSyncConfigService.findEnabledIndexInfoIds();
     if (indexInfoIds.isEmpty()) {
       return;
     }
 
-    syncJobService.syncLatestIndexData(
+    syncJobService.syncScheduledIndexData(
         indexInfoIds,
         SYSTEM_WORKER
     );
