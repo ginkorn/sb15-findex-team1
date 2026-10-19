@@ -43,8 +43,23 @@ public record IndexInfoCreateRequest(
   private static final DateTimeFormatter KRX_DATE_FORMAT =
       DateTimeFormatter.ofPattern("yyyyMMdd");
 
-  /** Open API 응답을 지수 정보 DTO로 변환한다. */
+  /**
+   * Open API 응답을 지수 정보 DTO로 변환한다.
+   *
+   * <p>기준 시점과 기준 지수는 프로젝트의 필수값이므로,
+   * 둘 중 하나라도 누락된 항목은 저장하지 않고 연동 실패로 처리한다.
+   */
   public static IndexInfoCreateRequest fromOpenApi(Item item) {
+    if (item.basPntm() == null || item.basPntm().isBlank()
+        || item.basIdx() == null || item.basIdx().isBlank()) {
+      throw new IllegalArgumentException(
+          "필수 기준 정보 누락: "
+              + item.idxCsf() + " / " + item.idxNm()
+              + " (basPntm=" + item.basPntm()
+              + ", basIdx=" + item.basIdx() + ")"
+      );
+    }
+
     return new IndexInfoCreateRequest(
         item.idxCsf(),
         item.idxNm(),

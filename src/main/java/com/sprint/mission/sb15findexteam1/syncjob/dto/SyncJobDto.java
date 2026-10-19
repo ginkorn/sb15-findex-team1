@@ -18,8 +18,11 @@ public record SyncJobDto(
     LocalDateTime jobTime,
     ResultType result
 ) {
+  /**
+   * 엔티티를 응답 DTO로 변환한다.
+   * 지수 정보 연동 실패 또는 지수 삭제 이력은 indexInfoId가 null일 수 있다.
+   */
   public static SyncJobDto toSyncJobDto(SyncJob syncJob) {
-    /** 연결된 지수가 없으면 indexInfoId를 null로 변환한다. */
     Long indexInfoId = syncJob.getIndexInfo() == null
         ? null
         : syncJob.getIndexInfo().getId();
