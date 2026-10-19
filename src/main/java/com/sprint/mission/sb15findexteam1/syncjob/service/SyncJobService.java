@@ -15,6 +15,7 @@ import com.sprint.mission.sb15findexteam1.syncjob.enums.JobType;
 import com.sprint.mission.sb15findexteam1.syncjob.enums.ResultType;
 import com.sprint.mission.sb15findexteam1.syncjob.repository.SyncJobRepository;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +48,7 @@ public class SyncJobService {
    * 주말·휴일에는 당일 데이터가 없을 수 있어 최근 7일 중 최신 기준일을 사용한다.
    */
   public List<SyncJobDto> syncIndexInfo(String worker) {
-    LocalDate today = LocalDate.now();
+    LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
     List<Item> items = openApiClient.getIndexData(today.minusDays(7), today);
     List<Item> latestItems = filterLatestDate(items);
 
@@ -62,58 +63,48 @@ public class SyncJobService {
    * <p>indexInfoIds가 null이거나 비어 있으면 등록된 전체 지수가 대상이다.
    * Open API 응답에는 내부 DB id가 없으므로 지수 분류명과 지수명으로 대상을 연결한다.
    */
-  public List<SyncJobDto> syncIndexData(IndexDataSyncRequest request, String worker) {
+  public List<SyncJobDto> syncIndexData(
+      IndexDataSyncRequest request,
+      String worker
+  ) {
     LocalDate from = request.baseDateFrom();
     LocalDate to = request.baseDateTo();
 
-    if (from.isAfter(to)) throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다");
+    if (from.isAfter(to)) {
+      throw new IllegalArgumentException(
+          "시작일은 종료일보다 늦을 수 없습니다"
+      );
+    }
 
     List<Long> indexInfoIds = request.indexInfoIds();
-    List<SyncJobDto> result = new ArrayList<>();
 
-
-    // 대상 ID를 생략하면 DB에 등록된 전체 지수를 연동한다.
     if (indexInfoIds == null || indexInfoIds.isEmpty()) {
       indexInfoIds = indexInfoService.getSummaries().stream()
           .map(IndexInfoSummaryDto::id)
           .toList();
     }
 
-    List<IndexInfo> targetIndexInfos = indexInfoIds.stream()
-        .distinct()
-        .map(indexInfoService::getEntity)
-        .toList();
+    List<Item> items =
+        openApiClient.getIndexData(from, to);
 
-    // Open API에는 내부 id가 없으므로 (지수 분류명, 지수명)을 연결 키로 사용한다.
-    Map<IndexKey, IndexInfo> targetIndexMap =
-        targetIndexInfos.stream()
-            .collect(Collectors.toMap(
-                indexInfo -> new IndexKey(
-                    indexInfo.getIndexClassification(),
-                    indexInfo.getIndexName()
-                ),
-                indexInfo -> indexInfo
-            ));
+    return syncIndexDataItems(
+        indexInfoIds,
+        items,
+        worker
+    );
+  }
 
-    List<Item> items = openApiClient.getIndexData(from, to);
-
-    for (Item item: items) {
-      IndexKey indexKey = new IndexKey(
-          item.idxCsf(),
-          item.idxNm()
-      );
-
-      IndexInfo targetIndexInfo = targetIndexMap.get(indexKey);
-
-      // API는 기간 내 전체 지수를 반환하므로 요청 대상이 아닌 항목은 건너뛴다.
-      if (targetIndexInfo == null) {
-        continue;
-      }
-
-      result.add(syncOneIndexData(item, targetIndexInfo, worker));
+  public List<SyncJobDto> syncLatestIndexData(List<Long> indexInfoIds, String worker) {
+    if (indexInfoIds == null || indexInfoIds.isEmpty()) {
+      return List.of();
     }
 
-    return result;
+    LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+    List<Item> items = openApiClient.getIndexData(today.minusDays(7), today);
+    List<Item> latestItems = filterLatestDate(items);
+
+    return syncIndexDataItems(indexInfoIds, latestItems, worker);
+
   }
 
   /** 주말·휴일을 포함한 조회 범위에서 API가 제공한 가장 최근 영업일 항목만 반환한다. */
@@ -238,6 +229,48 @@ public class SyncJobService {
 
       return SyncJobDto.toSyncJobDto(savedJob);
     }
+  }
+
+  private List<SyncJobDto> syncIndexDataItems(
+      List<Long> indexInfoIds,
+      List<Item> items,
+      String worker
+  ) {
+    List<SyncJobDto> result = new ArrayList<>();
+
+    List<IndexInfo> targetIndexInfos = indexInfoIds.stream()
+        .distinct()
+        .map(indexInfoService::getEntity)
+        .toList();
+
+    // Open API에는 내부 id가 없으므로 (지수 분류명, 지수명)을 연결 키로 사용한다.
+    Map<IndexKey, IndexInfo> targetIndexMap =
+        targetIndexInfos.stream()
+            .collect(Collectors.toMap(
+                indexInfo -> new IndexKey(
+                    indexInfo.getIndexClassification(),
+                    indexInfo.getIndexName()
+                ),
+                indexInfo -> indexInfo
+            ));
+
+    for (Item item: items) {
+      IndexKey indexKey = new IndexKey(
+          item.idxCsf(),
+          item.idxNm()
+      );
+
+      IndexInfo targetIndexInfo = targetIndexMap.get(indexKey);
+
+      // API는 기간 내 전체 지수를 반환하므로 요청 대상이 아닌 항목은 건너뛴다.
+      if (targetIndexInfo == null) {
+        continue;
+      }
+
+      result.add(syncOneIndexData(item, targetIndexInfo, worker));
+    }
+
+    return result;
   }
 
   /** 내부 id가 없는 Open API 항목을 IndexInfo와 연결하기 위한 키. */
