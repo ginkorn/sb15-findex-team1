@@ -173,4 +173,45 @@ class SyncJobQueryRepositoryTest {
 
     assertThat(result).extracting(SyncJob::getWorker).containsExactly("t12");
   }
+
+  // 정렬, 커서, 크기를 지정하는 검색 조건 도우미 (필터는 모두 null)
+  private SyncJobSearchCondition pageCondition(String sortField, String sortDirection,
+      String cursor, Long idAfter, Integer size) {
+    return new SyncJobSearchCondition(null, null, null, null, null, null, null, null,
+        idAfter, cursor, sortField, sortDirection, size);
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 커서를 주면 그 항목 바로 다음부터 조회한다 (작업 일시 최신순)")
+  void cursor_jobTime() {
+    // given: 9시, 10시, 11시, 12시 이력
+    job(JobType.INDEX_DATA, null, "t9", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 9, 0));
+    job(JobType.INDEX_DATA, null, "t10", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 10, 0));
+    SyncJob t11 = job(JobType.INDEX_DATA, null, "t11", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 11, 0));
+    job(JobType.INDEX_DATA, null, "t12", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 12, 0));
+
+    // when: 1페이지(size 2)의 마지막이었던 t11을 커서로 다음 페이지를 요청
+    List<SyncJob> result = repository.findPageByCondition(
+        pageCondition("jobTime", "desc", t11.getJobTime().toString(), t11.getId(), 2));
+
+    // then: t11 다음부터 t10, t9
+    assertThat(result).extracting(SyncJob::getWorker).containsExactly("t10", "t9");
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 작업 일시가 같으면 id로 구분해서 다음부터 조회한다")
+  void cursor_jobTime_tieBreak() {
+    // given: 작업 일시가 똑같은 이력 3개 (id 순서대로 a, b, c)
+    LocalDateTime same = LocalDateTime.of(2025, 1, 15, 10, 0);
+    job(JobType.INDEX_DATA, null, "a", ResultType.SUCCESS, same);
+    SyncJob b = job(JobType.INDEX_DATA, null, "b", ResultType.SUCCESS, same);
+    job(JobType.INDEX_DATA, null, "c", ResultType.SUCCESS, same);
+
+    // when: 최신순(id가 큰 쪽이 앞)이라 c, b, a 순서. b를 커서로 다음 페이지 요청
+    List<SyncJob> result = repository.findPageByCondition(
+        pageCondition("jobTime", "desc", same.toString(), b.getId(), 10));
+
+    // then: b 다음은 a 하나뿐
+    assertThat(result).extracting(SyncJob::getWorker).containsExactly("a");
+  }
 }
