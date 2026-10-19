@@ -1,13 +1,16 @@
 package com.sprint.mission.sb15findexteam1.syncjob.repository;
 
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.DateExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.sprint.mission.sb15findexteam1.common.pagination.CursorPaging;
 import com.sprint.mission.sb15findexteam1.syncjob.dto.SyncJobSearchCondition;
 import com.sprint.mission.sb15findexteam1.syncjob.entity.QSyncJob;
 import com.sprint.mission.sb15findexteam1.syncjob.entity.SyncJob;
 import jakarta.persistence.EntityManager;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.stereotype.Repository;
@@ -18,6 +21,9 @@ public class SyncJobQueryRepositoryImpl implements SyncJobQueryRepository{
   private static final QSyncJob syncJob = QSyncJob.syncJob;
   private final JPAQueryFactory queryFactory;
 
+  // 대상 날짜가 null인 이력은 정렬할 때 이 날짜(가장 오래된 날짜)로 취급한다
+  private static final LocalDate NULL_DATE = LocalDate.of(1970, 1, 1);
+
   public SyncJobQueryRepositoryImpl(EntityManager entityManager) {
     this.queryFactory = new JPAQueryFactory(entityManager);
   }
@@ -26,38 +32,81 @@ public class SyncJobQueryRepositoryImpl implements SyncJobQueryRepository{
   public List<SyncJob> findPageByCondition(SyncJobSearchCondition condition) {
     int size = CursorPaging.normalizeSize(condition.size());          // 크기가 없으면 10, 최대 100
     boolean asc = "asc".equalsIgnoreCase(condition.sortDirection());  // 방향이 없으면 내림차순(최신순)
+    boolean byTargetDate = isTargetDateSort(condition);               // 대상 날짜 정렬인지 (아니면 작업 일시)
 
     // 필터 조건에 커서 조건을 이어 붙인다 (첫 페이지는 커서가 없어서 null)
     BooleanBuilder builder = createFilter(condition);
-    BooleanExpression cursorCondition = jobTimeCursor(condition, asc);
+    BooleanExpression cursorCondition = byTargetDate
+        ? targetDateCursor(condition, asc)
+        : jobTimeCursor(condition, asc);
     if (cursorCondition != null) {
       builder.and(cursorCondition);
     }
 
+    // 정렬 기준: 선택한 필드 → 같으면 id
+    OrderSpecifier<?>[] order = byTargetDate
+        ? CursorPaging.orderBy(targetDateOrMin(), syncJob.id, asc)
+        : CursorPaging.orderBy(syncJob.jobTime, syncJob.id, asc);
+
     return queryFactory
         .selectFrom(syncJob)
         .where(builder)
-        .orderBy(CursorPaging.orderBy(syncJob.jobTime, syncJob.id, asc))   // 작업 일시 순서, 같으면 id 순서
-        .limit((long) size + 1)                                            // 다음 페이지 확인용으로 1개 더
+        .orderBy(order)
+        .limit((long) size + 1)                                       // 다음 페이지 확인용으로 1개 더
         .fetch();
   }
 
-  // 작업 일시 정렬의 커서 조건: "이전 페이지 마지막 항목 바로 다음"만 남긴다
-  private BooleanExpression jobTimeCursor(SyncJobSearchCondition condition, boolean asc) {
-    String cursor = condition.cursor();
-    Long idAfter = condition.idAfter();
-
-    boolean hasCursor = cursor != null && !cursor.isBlank();
-    if (!hasCursor && idAfter == null) {
-      return null;                                  // 첫 페이지: 커서 조건 없음
+  // 정렬 필드가 대상 날짜(targetDate)인지 판단한다. 비어 있거나 jobTime이면 작업 일시 정렬
+  private boolean isTargetDateSort(SyncJobSearchCondition condition) {
+    String field = condition.sortField();
+    if (field == null || field.isBlank() || "jobTime".equals(field)) {
+      return false;
     }
-    if (!hasCursor || idAfter == null) {
-      throw new IllegalArgumentException("cursor와 idAfter를 함께 전달해야 합니다.");   // 둘 중 하나만 오면 잘못된 요청
+    if ("targetDate".equals(field)) {
+      return true;
     }
-
-    LocalDateTime cursorTime = LocalDateTime.parse(cursor);                 // "2025-01-15T11:00" 문자열을 시각으로
-    return CursorPaging.after(syncJob.jobTime, cursorTime, syncJob.id, idAfter, asc);
+    throw new IllegalArgumentException("지원하지 않는 정렬 필드: " + field);
   }
+
+  // 대상 날짜가 null이면 NULL_DATE로 바꿔서 정렬, 비교에 쓴다 (DB 종류와 상관없이 항상 같은 순서)
+  private DateExpression<LocalDate> targetDateOrMin() {
+    return syncJob.targetDate.coalesce(NULL_DATE);
+  }
+
+  // 커서가 있는지 확인한다. 한쪽만 오면 잘못된 요청이라 예외를 던진다
+  private boolean hasCursor(SyncJobSearchCondition condition) {
+    boolean hasCursor = condition.cursor() != null && !condition.cursor().isBlank();
+    boolean hasIdAfter = condition.idAfter() != null;
+    if (!hasCursor && !hasIdAfter) {
+      return false;                                  // 첫 페이지: 커서 조건 없음
+    }
+    if (!hasCursor || !hasIdAfter) {
+      throw new IllegalArgumentException("cursor와 idAfter를 함께 전달해야 합니다.");
+    }
+    return true;
+  }
+
+  // 작업 일시 정렬의 커서 조건
+  private BooleanExpression jobTimeCursor(SyncJobSearchCondition condition, boolean asc) {
+    if (!hasCursor(condition)) {
+      return null;
+    }
+    LocalDateTime cursorTime = LocalDateTime.parse(condition.cursor());
+    return CursorPaging.after(syncJob.jobTime, cursorTime, syncJob.id, condition.idAfter(), asc);
+  }
+
+  // 대상 날짜 정렬의 커서 조건 ("__NULL__" 커서는 NULL_DATE로 해석)
+  private BooleanExpression targetDateCursor(SyncJobSearchCondition condition, boolean asc) {
+    if (!hasCursor(condition)) {
+      return null;
+    }
+    LocalDate cursorDate = CursorPaging.NULL_CURSOR.equals(condition.cursor())
+        ? NULL_DATE
+        : LocalDate.parse(condition.cursor());
+    return CursorPaging.after(targetDateOrMin(), cursorDate, syncJob.id, condition.idAfter(), asc);
+  }
+
+
 
   @Override
   public long countByCondition(SyncJobSearchCondition condition) {

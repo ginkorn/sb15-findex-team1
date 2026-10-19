@@ -214,4 +214,65 @@ class SyncJobQueryRepositoryTest {
     // then: b 다음은 a 하나뿐
     assertThat(result).extracting(SyncJob::getWorker).containsExactly("a");
   }
+
+
+  // 대상 날짜를 정해서 이력을 저장하는 도우미 (작업 일시는 의미 없음)
+  private SyncJob jobOn(LocalDate targetDate, String worker) {
+    SyncJob job = SyncJob.create(JobType.INDEX_DATA, null, targetDate, worker, ResultType.SUCCESS);
+    entityManager.persist(job);
+    return job;
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 대상 날짜 최신순 정렬: 대상 날짜가 없는(null) 이력은 가장 뒤")
+  void sort_targetDate_desc() {
+    jobOn(LocalDate.of(2025, 1, 14), "d14");
+    jobOn(null, "none");                       // 대상 날짜가 없는 이력 (지수 정보 연동 등)
+    jobOn(LocalDate.of(2025, 1, 16), "d16");
+
+    List<SyncJob> result = repository.findPageByCondition(pageCondition("targetDate", "desc", null, null, 10));
+
+    assertThat(result).extracting(SyncJob::getWorker).containsExactly("d16", "d14", "none");
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 대상 날짜 과거순 정렬: 대상 날짜가 없는(null) 이력은 가장 앞")
+  void sort_targetDate_asc() {
+    jobOn(LocalDate.of(2025, 1, 14), "d14");
+    jobOn(null, "none");
+    jobOn(LocalDate.of(2025, 1, 16), "d16");
+
+    List<SyncJob> result = repository.findPageByCondition(pageCondition("targetDate", "asc", null, null, 10));
+
+    assertThat(result).extracting(SyncJob::getWorker).containsExactly("none", "d14", "d16");
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 대상 날짜 정렬에서 커서를 주면 바로 다음부터 조회한다")
+  void cursor_targetDate() {
+    jobOn(LocalDate.of(2025, 1, 14), "d14");
+    SyncJob d15 = jobOn(LocalDate.of(2025, 1, 15), "d15");
+    jobOn(LocalDate.of(2025, 1, 16), "d16");
+    jobOn(null, "none");
+
+    // 최신순: d16, d15, d14, none → d15를 커서로 다음 페이지
+    List<SyncJob> result = repository.findPageByCondition(
+        pageCondition("targetDate", "desc", "2025-01-15", d15.getId(), 10));
+
+    assertThat(result).extracting(SyncJob::getWorker).containsExactly("d14", "none");
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 대상 날짜 과거순 정렬에서 null 커서(__NULL__)를 주면 그 다음부터 조회한다")
+  void cursor_targetDate_nullCursor() {
+    SyncJob none = jobOn(null, "none");
+    jobOn(LocalDate.of(2025, 1, 14), "d14");
+    jobOn(LocalDate.of(2025, 1, 16), "d16");
+
+    // 과거순: none, d14, d16 → null 항목(none)이 1페이지 마지막이었다고 가정하고 그 다음 요청
+    List<SyncJob> result = repository.findPageByCondition(
+        pageCondition("targetDate", "asc", "__NULL__", none.getId(), 10));
+
+    assertThat(result).extracting(SyncJob::getWorker).containsExactly("d14", "d16");
+  }
 }
