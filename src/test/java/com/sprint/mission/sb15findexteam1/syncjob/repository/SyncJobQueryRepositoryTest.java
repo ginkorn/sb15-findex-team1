@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +46,11 @@ class SyncJobQueryRepositoryTest {
     ReflectionTestUtils.setField(job, "jobTime", jobTime);
     entityManager.persist(job);
     return job;
+  }
+
+  @BeforeEach
+  void cleanUp() {
+    entityManager.createQuery("delete from SyncJob").executeUpdate();
   }
 
   // 테스트용 지수 정보를 저장하는 도우미 (이름만 의미 있음)
