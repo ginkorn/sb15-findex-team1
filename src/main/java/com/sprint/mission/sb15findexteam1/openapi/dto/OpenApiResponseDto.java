@@ -37,10 +37,10 @@ public record OpenApiResponseDto(
   public record Item(
       String idxCsf,      // 지수분류명 / ex. KOSPI 시리즈
       String idxNm,       // 지수명 / ex. IT 서비스
-      String basPntm,     // 지수를 산출하기 위한 기준시점 / ex. 20240701
+      String basPntm,     // 지수를 산출하기 위한 기준시점. 일부 지수는 null이므로 저장 전 검증
       String epyItmsCnt, // 채용 종목 수 -> 지수가 채용한 종목의 수 / ex. 25 / Integer
       String basDt,    // 기준일자 / LocalDate
-      String basIdx,  // 기준 지수 / BigDecimal
+      String basIdx,  // 기준 지수. 일부 지수는 null이므로 저장 전 검증
       String mkp,     // 하루 시가 / BigDecimal
       String clpr,    // 하루 종가 / BigDecimal
       String hipr,    // 하루 중 최고치 / BigDecimal
