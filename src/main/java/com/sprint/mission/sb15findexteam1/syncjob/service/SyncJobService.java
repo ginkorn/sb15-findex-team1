@@ -10,6 +10,7 @@ import com.sprint.mission.sb15findexteam1.openapi.client.OpenApiClient;
 import com.sprint.mission.sb15findexteam1.openapi.dto.OpenApiResponseDto.Item;
 import com.sprint.mission.sb15findexteam1.syncjob.dto.IndexDataSyncRequest;
 import com.sprint.mission.sb15findexteam1.syncjob.dto.SyncJobDto;
+import com.sprint.mission.sb15findexteam1.syncjob.dto.SyncJobSearchCondition;
 import com.sprint.mission.sb15findexteam1.syncjob.entity.SyncJob;
 import com.sprint.mission.sb15findexteam1.syncjob.enums.JobType;
 import com.sprint.mission.sb15findexteam1.syncjob.enums.ResultType;
@@ -94,17 +95,42 @@ public class SyncJobService {
     );
   }
 
-  public List<SyncJobDto> syncLatestIndexData(List<Long> indexInfoIds, String worker) {
+  public void syncScheduledIndexData(List<Long> indexInfoIds, String worker) {
     if (indexInfoIds == null || indexInfoIds.isEmpty()) {
-      return List.of();
+      return;
     }
 
     LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
-    List<Item> items = openApiClient.getIndexData(today.minusDays(7), today);
-    List<Item> latestItems = filterLatestDate(items);
+    indexInfoIds = indexInfoIds.stream().distinct().toList();
 
-    return syncIndexDataItems(indexInfoIds, latestItems, worker);
+    for (Long indexInfoId : indexInfoIds) {
+      SyncJobSearchCondition condition = new SyncJobSearchCondition(
+          JobType.INDEX_DATA,
+          indexInfoId,
+          null,
+          null,
+          worker,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "targetDate",
+          "desc",
+          1
+      );
 
+      LocalDate startDate = syncJobRepository.findPageByCondition(condition)
+          .stream()
+          .findFirst()
+          .map(SyncJob::getTargetDate)
+          .orElse(today.minusDays(7));
+
+      List<Item> items =
+          openApiClient.getIndexData(startDate, today);
+
+      syncIndexDataItems(List.of(indexInfoId), items, worker);
+    }
   }
 
   /** 주말·휴일을 포함한 조회 범위에서 API가 제공한 가장 최근 영업일 항목만 반환한다. */
