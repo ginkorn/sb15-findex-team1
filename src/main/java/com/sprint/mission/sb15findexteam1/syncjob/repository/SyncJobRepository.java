@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 /** 연동 작업 이력(SyncJob) 저장소. 이력 목록 조회용 쿼리는 D가 추가한다. */
 @Repository
-public interface SyncJobRepository extends JpaRepository<SyncJob, Long> {
+public interface SyncJobRepository extends JpaRepository<SyncJob, Long> , SyncJobQueryRepository{
 }
