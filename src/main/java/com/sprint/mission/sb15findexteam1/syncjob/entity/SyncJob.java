@@ -34,9 +34,6 @@ import org.hibernate.annotations.OnDeleteAction;
  *   <li>지수 데이터 연동은 "지수 × 날짜"마다 1건씩 기록한다.</li>
  *   <li>실패한 작업도 FAILED로 반드시 기록한다.</li>
  * </ul>
- *
- * <p>담당 안내: 필드(테이블 모양)만 A가 정의했다.
- * 이력을 만드는 생성 메서드는 담당자(C)가 추가하고, 목록 조회는 D가 사용한다.
  */
 @Entity
 @Getter
@@ -62,9 +59,6 @@ public class SyncJob {
    *   <li>{@code @OnDelete(SET_NULL)}: 지수가 삭제되면 이력은 지우지 않고 이 칸만 null로 비운다.
    *       (영수증은 물건을 버려도 보관하는 것처럼, "언제 무엇을 연동했는지" 기록을 남기기 위함)</li>
    * </ul>
-   *
-   * <p>TODO 팀 확정 필요: 지수 삭제 시 이력도 함께 지울지(CASCADE), 지금처럼 남길지(SET_NULL).
-   * ERD에 정해져 있지 않아 임시로 "남김"으로 했다. 바꾸려면 OnDeleteAction만 수정하면 된다.
    */
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "index_info_id")
@@ -79,7 +73,7 @@ public class SyncJob {
 
   /**
    * 작업자.
-   * 사용자가 직접 실행하면 요청한 IP 주소 (프록시 뒤에서는 X-Forwarded-For 헤더 우선),
+   * 사용자가 직접 실행하면 요청 연결의 원격 주소,
    * 배치(스케줄러)가 실행하면 "system".
    */
   @Column(nullable = false, length = 100)
@@ -96,13 +90,7 @@ public class SyncJob {
 
 
   /**
-   * 새 연동 작업을 만든다.
-   * sourceType 지수 정보 연동이면 INDEX_INFO,
-   * O지수 데이터 연동이면 INDEX_DATA
-   *
-   * <p>
-   * 연동 실패 (Open API 오류, 데이터 없음 등) - FAILED
-   * 연동 성공 - SUCCESS
+   * 지정한 작업 유형·대상·작업자·결과로 현재 시각의 연동 이력을 생성한다.
    */
   public static SyncJob create(
       JobType jobType,
