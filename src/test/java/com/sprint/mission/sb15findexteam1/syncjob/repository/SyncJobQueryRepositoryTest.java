@@ -138,4 +138,39 @@ class SyncJobQueryRepositoryTest {
 
     assertThat(result).extracting(SyncJob::getWorker).containsExactly("kospi-job");
   }
+
+
+  // 작업 일시 범위만 지정하는 검색 조건 도우미 (나머지는 null)
+  private SyncJobSearchCondition timeCondition(LocalDateTime from, LocalDateTime to) {
+    return new SyncJobSearchCondition(null, null, null, null, null, from, to, null,
+        null, null, null, null, null);
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] 작업 일시 범위(jobTimeFrom ~ jobTimeTo)로 거른다 (양 끝 포함)")
+  void filter_jobTimeRange() {
+    // given: 9시, 10시, 11시, 12시 이력 4개
+    job(JobType.INDEX_DATA, null, "t9", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 9, 0));
+    job(JobType.INDEX_DATA, null, "t10", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 10, 0));
+    job(JobType.INDEX_DATA, null, "t11", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 11, 0));
+    job(JobType.INDEX_DATA, null, "t12", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 12, 0));
+
+    // when: 10시 ~ 11시
+    List<SyncJob> result = repository.findPageByCondition(timeCondition(
+        LocalDateTime.of(2025, 1, 15, 10, 0), LocalDateTime.of(2025, 1, 15, 11, 0)));
+
+    // then: 양 끝(10시, 11시)을 포함해서 최신순으로 t11, t10
+    assertThat(result).extracting(SyncJob::getWorker).containsExactly("t11", "t10");
+  }
+
+  @Test
+  @DisplayName("[QueryDSL] jobTimeFrom만 주면 그 시각 이후만 조회한다")
+  void filter_jobTimeFromOnly() {
+    job(JobType.INDEX_DATA, null, "t9", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 9, 0));
+    job(JobType.INDEX_DATA, null, "t12", ResultType.SUCCESS, LocalDateTime.of(2025, 1, 15, 12, 0));
+
+    List<SyncJob> result = repository.findPageByCondition(timeCondition(LocalDateTime.of(2025, 1, 15, 10, 0), null));
+
+    assertThat(result).extracting(SyncJob::getWorker).containsExactly("t12");
+  }
 }

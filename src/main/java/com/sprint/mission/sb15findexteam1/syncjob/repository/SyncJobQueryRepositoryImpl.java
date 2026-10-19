@@ -62,6 +62,12 @@ public class SyncJobQueryRepositoryImpl implements SyncJobQueryRepository{
     if (condition.status() != null) {
       builder.and(syncJob.result.eq(condition.status()));
     }
+    if (condition.jobTimeFrom() != null) {
+      builder.and(syncJob.jobTime.goe(condition.jobTimeFrom()));    // 시작 시각 이상
+    }
+    if (condition.jobTimeTo() != null) {
+      builder.and(syncJob.jobTime.loe(condition.jobTimeTo()));      // 끝 시각 이하
+    }
     return builder;
   }
 }
