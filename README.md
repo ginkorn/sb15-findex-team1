@@ -63,9 +63,21 @@
 
 ### (최주영) - ohkr1123-commits
 
-(자신이 개발한 기능에 대한 사진이나 gif 파일 첨부)
+- **담당 역할: 지수 데이터 관리**
+- Spring Data JPA 기반 지수 데이터 CRUD API 구현
+- 지수별·날짜별 데이터 조회 및 필터링
+- 커서 기반 페이지네이션 및 동적 정렬 구현
+- DTO를 활용한 요청·응답 데이터 처리
+- K-샤프지수의 필수값 누락으로 발생하는 연동 실패 개선
+    basPntm, basIdx가 모두 null인 K-샤프지수 4건을 조건부 제외
+    제외 사유를 WARN 로그로 기록하고 불필요한 실패 이력 생성 방지
+- 데이터 관리 화면의 KOSPI/KOSDAQ 지수명 구분 개선
+- 지수 관리 화면의 즐겨찾기 원클릭 등록·해제 기능 개선
 
-- (TODO: 담당 기능)
+**📸 주요 기능 스크린샷**
+
+<img width="2048" height="1113" alt="image" src="https://github.com/user-attachments/assets/4fc6fba7-8a08-4508-83f7-06dcc8f9bcaa" />
+
 
 ## ER 다이어그램
 
