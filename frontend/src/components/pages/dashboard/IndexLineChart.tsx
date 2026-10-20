@@ -19,11 +19,11 @@ interface IndexLineChartProps {
 export const IndexLineChart = ({ data }: IndexLineChartProps) => {
   const isDesktop = useBreakpoint("lg");
 
-  // 최신순으로 오는 데이터를 시간 순서(과거 -> 현재)로 뒤집고 하나로 합침
+  // 백엔드에서 받은 날짜 오름차순 데이터를 차트용으로 변환
   const combinedData = useMemo(() => {
     const points = data?.dataPoints || [];
 
-    return [...points].reverse().map((point) => {
+    return points.map((point) => {
       const ma5Point = data?.ma5DataPoints?.find((m) => m.date === point.date);
       const ma20Point = data?.ma20DataPoints?.find(
         (m) => m.date === point.date,
