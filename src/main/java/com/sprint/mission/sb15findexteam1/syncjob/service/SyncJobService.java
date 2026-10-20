@@ -54,7 +54,28 @@ public class SyncJobService {
     List<Item> latestItems = filterLatestDate(items);
 
     return latestItems.stream()
-        .map(item -> syncOneIndexInfo(item, LocalDate.parse(item.basDt(), KRX_DATE_FORMAT), worker))
+        .filter(item -> {
+          boolean isKSharpe = item.idxNm() != null
+              && item.idxNm().startsWith("K-샤프지수(");
+
+          boolean missingBaseInfo =
+              item.basPntm() == null && item.basIdx() == null;
+
+          if (isKSharpe && missingBaseInfo) {
+            log.warn(
+                "지수 정보 연동 제외: name={}, basPntm={}, basIdx={}",
+                item.idxNm(), item.basPntm(), item.basIdx()
+            );
+            return false;
+          }
+
+          return true;
+        })
+        .map(item -> syncOneIndexInfo(
+            item,
+            LocalDate.parse(item.basDt(), KRX_DATE_FORMAT),
+            worker
+        ))
         .toList();
   }
 
