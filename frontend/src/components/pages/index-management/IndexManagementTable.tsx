@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { SortDescriptor } from "react-aria-components";
 import { Edit01, RefreshCcw05, Star01, Trash01 } from "@untitledui/icons";
-import { deleteIndexInfo } from "@/api/indexInfoApi";
+import { deleteIndexInfo, updateIndexInfo } from "@/api/indexInfoApi";
 import { Badge } from "@/components/common/badges/Badge";
 import { Button } from "@/components/common/buttons/Button";
 import { Empty } from "@/components/common/Empty";
@@ -13,9 +13,18 @@ import { useModalStore } from "@/store/modalStore";
 import { useToastStore } from "@/store/toastStore";
 import { isActiveSortColumn } from "@/utils/sort";
 
+
 const IndexTable = () => {
-  const { items, isLoading, error, hasNext, filters, fetch, fetchNext, setFilters } =
-    useIndexIndexListStore();
+  const {
+    items,
+    isLoading,
+    error,
+    hasNext,
+    filters,
+    fetch,
+    fetchNext,
+    setFilters,
+  } = useIndexIndexListStore();
 
   // 모달 상태 및 액션
   const { openConfirm, openIndexForm, openIndexSync, close } = useModalStore();
@@ -43,7 +52,10 @@ const IndexTable = () => {
   const handleSortChange = (descriptor: SortDescriptor) => {
     if (!descriptor.column) return;
 
-    const sortField = descriptor.column as "indexClassification" | "indexName" | "employedItemsCount";
+    const sortField = descriptor.column as
+      | "indexClassification"
+      | "indexName"
+      | "employedItemsCount";
     const sortDirection = descriptor.direction === "ascending" ? "asc" : "desc";
 
     setFilters({ sortField, sortDirection });
@@ -76,6 +88,25 @@ const IndexTable = () => {
   // 지수 연동 버튼 클릭 핸들러
   const handleSyncClick = () => {
     openIndexSync();
+  };
+
+  // 즐겨찾기 등록 및 해제
+  const handleToggleFavorite = async (item: IndexInfoResponse) => {
+    try {
+      await updateIndexInfo(item.id, {
+        indexClassification: item.indexClassification,
+        indexName: item.indexName,
+        employedItemsCount: item.employedItemsCount,
+        basePointInTime: item.basePointInTime,
+        baseIndex: item.baseIndex,
+        favorite: !item.favorite,
+      });
+
+      await fetch();
+      successToast("즐겨찾기가 변경되었습니다.");
+    } catch (error) {
+      errorToast("즐겨찾기 변경에 실패했습니다.");
+    }
   };
 
   // 지수 수정 버튼 클릭
@@ -141,21 +172,13 @@ const IndexTable = () => {
                 label="기준 시점"
                 className="w-2/12"
               />
-              <Table.Head
-                id="baseIndex"
-                label="기준 지수"
-                className="w-1/12"
-              />
+              <Table.Head id="baseIndex" label="기준 지수" className="w-1/12" />
               <Table.Head
                 id="sourceType"
                 label="소스 타입"
                 className="w-1/12"
               />
-              <Table.Head
-                id="favorite"
-                label="즐겨찾기"
-                className="w-1/12"
-              />
+              <Table.Head id="favorite" label="즐겨찾기" className="w-1/12" />
               <Table.Head id="actions" className="w-1/12" />
             </Table.Header>
 
@@ -177,11 +200,20 @@ const IndexTable = () => {
                     <Badge kind="source" value={item.sourceType} />
                   </Table.Cell>
                   <Table.Cell className="w-1/12">
-                    {item.favorite ? (
-                      <Star01 size={20} stroke="#FDB022" fill="#FDB022" />
-                    ) : (
-                      <Star01 size={20} stroke="#E9EAEB" fill="#E9EAEB" />
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleFavorite(item)}
+                      aria-label={
+                        item.favorite ? "즐겨찾기 해제" : "즐겨찾기 등록"
+                      }
+                      className="cursor-pointer"
+                    >
+                      <Star01
+                        size={20}
+                        stroke={item.favorite ? "#FDB022" : "#E9EAEB"}
+                        fill={item.favorite ? "#FDB022" : "#E9EAEB"}
+                      />
+                    </button>
                   </Table.Cell>
                   <Table.Cell className="w-1/12">
                     <div className="flex justify-end gap-0.5">
