@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { SortDescriptor } from "react-aria-components";
 import { Edit01, RefreshCcw05, Trash01 } from "@untitledui/icons";
 import { deleteIndexData } from "@/api/indexDataApi";
@@ -7,12 +8,14 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import type { IndexDataDto } from "@/model/indexData";
 import type { Index } from "@/pages/DataManagement";
 import { useIndexDataListStore } from "@/store/indexDataListStore";
+import { useIndexInfoSummaryStore } from "@/store/indexInfoSummaryStore";
 import { useModalStore } from "@/store/modalStore";
 import { useToastStore } from "@/store/toastStore";
 import { isActiveSortColumn } from "@/utils/sort";
 import { Badge } from "../../common/badges/Badge";
 import { Empty } from "../../common/Empty";
 import { IndexTrend } from "../dashboard/IndexTrend";
+
 
 interface DataManagementTableProps {
   index: Index | null;
@@ -26,6 +29,15 @@ export default function DataManagementTable({
   const { successToast, errorToast } = useToastStore();
   const { openConfirm, openIndexDataForm, openIndexDataSync, close } =
     useModalStore();
+
+  // 등록된 지수 정보 가져오기
+  const { items: indexInfoItems } = useIndexInfoSummaryStore();
+
+  // 지수 ID를 이용해 지수명 찾기
+  const indexNameMap = useMemo(() => {
+    return new Map(indexInfoItems.map((item) => [item.id, item.indexName]));
+  }, [indexInfoItems]);
+
 
   // 무한 스크롤 유틸
   const { loadMoreRef } = useInfiniteScroll({
@@ -131,9 +143,8 @@ export default function DataManagementTable({
 
   // 지수 연동 클릭
   const handleSyncApiClick = () => {
-    if (!index) return;
     openIndexDataSync({
-      index: index,
+      index: index ?? { id: -1, label: "전체 지수" },
     });
   };
 
@@ -209,7 +220,22 @@ export default function DataManagementTable({
               onAction={() => handleRowClick(item)}
               className="hover:cursor-pointer"
             >
-              <Table.Cell className="min-w-35">{item.baseDate}</Table.Cell>
+              <Table.Cell className="min-w-35">
+                <div className="flex flex-col gap-1">
+                  {/* 기존 날짜 */}
+                  <span>{item.baseDate}</span>
+
+                  {/* 지수명 표시 */}
+                  <span
+                    className="block max-w-36 truncate text-xs text-gray-500"
+                    title={indexNameMap.get(item.indexInfoId) ?? ""}
+                  >
+                    {indexNameMap.get(item.indexInfoId) ??
+                      `지수 ID: ${item.indexInfoId}`}
+                  </span>
+                </div>
+              </Table.Cell>
+
               <Table.Cell>
                 {item.marketPrice.toLocaleString("ko-KR")}
               </Table.Cell>
