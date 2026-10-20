@@ -14,6 +14,7 @@ import { Label } from "../../common/input/Label";
 import { BaseModal } from "../../common/modals/BaseModal";
 import { Select } from "../../common/select/Select";
 
+
 interface IndexDataModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -72,7 +73,7 @@ export default function IndexDataModal({
   const summaries = useMemo(() => {
     const mappedItems = items.map((item) => ({
       id: item.id,
-      label: item.indexName,
+      label: `${item.indexName} | ${item.indexClassification.replace("시리즈", "")}`,
     }));
 
     return [...mappedItems];

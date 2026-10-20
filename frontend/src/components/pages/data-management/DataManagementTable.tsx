@@ -24,8 +24,16 @@ interface DataManagementTableProps {
 export default function DataManagementTable({
   index,
 }: DataManagementTableProps) {
-  const { items, isLoading, error, hasNext, filters, fetch, fetchNext, setFilters } =
-    useIndexDataListStore();
+  const {
+    items,
+    isLoading,
+    error,
+    hasNext,
+    filters,
+    fetch,
+    fetchNext,
+    setFilters,
+  } = useIndexDataListStore();
   const { successToast, errorToast } = useToastStore();
   const { openConfirm, openIndexDataForm, openIndexDataSync, close } =
     useModalStore();
@@ -33,11 +41,15 @@ export default function DataManagementTable({
   // 등록된 지수 정보 가져오기
   const { items: indexInfoItems } = useIndexInfoSummaryStore();
 
-  // 지수 ID를 이용해 지수명 찾기
+  // 지수 ID를 이용해 지수명과 분류 표시
   const indexNameMap = useMemo(() => {
-    return new Map(indexInfoItems.map((item) => [item.id, item.indexName]));
+    return new Map(
+      indexInfoItems.map((item) => [
+        item.id,
+        `${item.indexName} | ${item.indexClassification.replace("시리즈", "")}`,
+      ]),
+    );
   }, [indexInfoItems]);
-
 
   // 무한 스크롤 유틸
   const { loadMoreRef } = useInfiniteScroll({
